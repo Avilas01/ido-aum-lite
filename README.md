@@ -2,14 +2,15 @@
 
 Develop with VS Code and Codex on Windows. Run all full training, benchmarking and final evaluation on a Google Colab Free GPU. A local GPU is not required.
 
-**Current stage: Step 0 complete.** Portable configuration, a thin Colab entry notebook and CPU-only scaffold tests are implemented. Research modules (`src.train`, `src.evaluate`, `src.plots`, etc.) and research-method tests belong to later steps and have not been implemented. The notebook checks for these modules before launching experiments; it does not contain a substitute training implementation. Follow the existing implementation plan for the remaining stages. No experiments or results have been produced.
+**Current stage: Step 1 implemented.** Portable configuration, the thin Colab notebook, reproducible stratified subsets, exact synthetic noise, stable-ID image adapters and separate analysis artifacts are implemented. The model, WE/AUM tracking, scoring, loss and training/evaluation runners remain later stages. No CIFAR-10 download or training has been performed locally. Actual torchvision transforms/DataLoader and real-data checks are provided for Colab.
 
 ## Repository responsibilities
 
 - `config.py`: CPU-safe configuration loader/validator and scientific-settings fingerprint.
 - `configs/default.json`: portable scientific defaults (20k images, 6+6 epochs, seed 42).
 - `notebooks/colab_runner.ipynb`: Drive mount, pinned checkout, dependencies/GPU checks, configuration, benchmark/run/resume CLI orchestration.
-- `src/` (planned): reusable data, model, statistics, scores, loss, checkpoint, training, evaluation and plotting modules. All research and resume logic belongs here.
+- `src/data.py`: NumPy-only reproducible label preparation, stable-ID dataset adapters and lazy Colab CIFAR/transform loading.
+- Other `src/` research modules (planned): model, statistics, scores, loss, checkpointing, training, evaluation and plotting.
 - `requirements.txt`: lightweight Windows dependencies, excluding torch/torchvision/CUDA.
 - `requirements-colab.txt`: explicit training/evaluation dependencies including torch and torchvision.
 - `src/colab_dependencies.py`: Colab-only GPU dependency inspection/repair, safe to import locally without torch.
@@ -40,7 +41,7 @@ Future PyTorch-dependent dataset/model/statistics/loss tests run **in Colab**. M
 4. Run the dependency cell. It reads requirements-colab.txt, installs missing common packages without upgrading satisfied ones, and probes torch/torchvision in a fresh subprocess. Checks include installed versions, actual imports, torchvision's torch dependency metadata, CUDA, GPU name and a tiny compiled CUDA operation. A working GPU pair is kept even if it differs from the repair pair. No dataset is downloaded.
 5. Missing/incompatible/broken pairs are repaired **together** using torch==2.14.1 and torchvision==0.29.1 from the official CUDA 12.6 wheel index, as listed in [PyTorch's installation matrix](https://pytorch.org/get-started/previous-versions/). General requirements are intentionally not independently pinned to force replacement of a working Colab pair; metadata and runtime checks enforce compatibility. Actual versions are recorded in the persistent environment manifest. If no GPU is assigned, setup stops before installation; select a GPU rather than installing a CUDA toolkit.
 6. **If PyTorch installations change, setup raises RestartRequired. Select Runtime > Restart session (Restart runtime in some UIs), then rerun setup with the same RUN_ID.** Do not continue with cached native libraries. The next pass preserves the repaired pair. If post-repair CUDA/import checks fail, stop and review driver/package compatibility or select a fresh GPU runtime before proceeding.
-7. Run the optional hosted-test cell to install requirements-dev.txt and run python -m pytest -q in Colab. This includes PyTorch-dependent tests once later stages exist; the current scaffold has no implemented model tests or training pipeline.
+7. Run the optional hosted-test cell to install requirements-dev.txt and run python -m pytest -q in Colab. This includes PyTorch-dependent tests once later stages exist; Step 1 includes synthetic-image transform/DataLoader tests, but model tests and training remain later stages.
 8. Once research modules exist, use the smoke/benchmark/freeze cells, then train both noise conditions and evaluate/plot. Notebook commands use sys.executable -m, checked subprocess argument lists and explicit repository cwd. Missing research modules produce an explicit error; their implementation remains later work.
 
 The non-torch installation cannot replace torch. A healthy GPU pair with a broken common import is reported separately rather than triggering PyTorch replacement. The tiny CUDA probe is dependency verification, not model training. The bootstrap is safe to import locally, but its installation function refuses Windows/non-Colab runtimes before any pip call.
@@ -57,7 +58,36 @@ report = ensure_colab_dependencies(repo)
 # If RestartRequired is raised, restart the runtime and rerun setup first.
 ```
 
-Experimental settings, the 15-hour budget and uniform fallback rules are unchanged. Default counts remain 48 executed training epochs, 72 training image-view passes, 36 statistics passes and 12 diagnostic-only inference passes. No Step 1 implementation or data download is part of this dependency correction.
+Experimental settings, the 15-hour budget and uniform fallback rules are unchanged. Default counts remain 48 executed training epochs, 72 training image-view passes, 36 statistics passes and 12 diagnostic-only inference passes. Step 1 data preparation is available separately below; model training remains unimplemented.
+
+## Step 1: data and exact noisy labels
+
+Local, synthetic-only verification (no torch or CIFAR download):
+
+```powershell
+./.venv/Scripts/python.exe -m pytest tests/test_noise.py -q
+./.venv/Scripts/python.exe -m src.data --synthetic-check
+```
+
+The synthetic check reports subset sizes, original-label class counts, 4,000/8,000 changed labels at the default size, stable checksums and sample shapes using generated images. These are sanity checks, not experimental results.
+
+In Colab, run the hosted tests (including tests/test_data_torch.py), then optionally enable RUN_DATA_CHECK in the notebook. Real CIFAR-10 is automatically downloaded to /content/data only on that explicit opt-in. A direct CLI equivalent for one noise condition, from the repository checkout, is:
+
+```bash
+python -m src.data --prepare --config configs/default.json --noise 0.2 --data-root /content/data --metadata-root /content/drive/MyDrive/ido-aum-lite/experiments/run-001/data_checks/manual/noise_20
+```
+
+Use a distinct metadata directory per noise/configuration; both conditions always select the same image IDs. Exact corruption draws use independent recorded SeedSequence([seed, noise_percent, 1]) streams derived from seed 42. All replacements uniformly exclude the original class. Subset positions are 0..N-1; TrainingMetadata.original_indices maps them to original CIFAR IDs.
+
+Training preparation loads only train=True, saves analysis separately and returns TrainingData containing images, provided noisy labels and IDs. It never retains the raw torchvision object or its original targets. make_training_datasets returns one-view standard, independent two-view adaptive and deterministic statistics datasets. Evaluation uses the separate load_cifar10_test entry point with all 10,000 official labels unchanged. A model is not implemented in this stage.
+
+Persisted files under each metadata directory:
+
+- training.npz: original_indices and noisy_labels only; load_training_metadata never opens analysis.npz.
+- analysis.npz: clean_labels and is_corrupted, for retrospective evaluation/sanity checks only.
+- metadata.json: subset/noisy-label checksums, sample count, ratio, seed streams and fixed transform settings. Existing incompatible or incomplete artifacts are rejected, not silently overwritten.
+
+The weak view uses crop (32, padding 4), horizontal flip, tensor conversion and normalization. The strong view independently repeats crop/flip, adds ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05) before tensor conversion/normalization. Evaluation/statistics use only tensor conversion/normalization. Fixed channel mean=(0.4914, 0.4822, 0.4465) and std=(0.2470, 0.2435, 0.2616) are recorded with metadata. Standard/warm-up samples never compute an unused strong view. Training uses only noisy-label classes; clean originals and masks must never enter loss/score/selection functions.
 
 ## Restart and resume
 
