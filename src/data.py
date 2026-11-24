@@ -9,12 +9,15 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+from contextlib import nullcontext
+from time import monotonic
 import hashlib
 import json
 from pathlib import Path
 from typing import Callable
 
 import numpy as np
+from .preparation_progress import PreparationProgress
 
 NUM_CLASSES = 10
 CIFAR_MEAN = (0.4914, 0.4822, 0.4465)
@@ -141,40 +144,85 @@ class AnalysisMetadata:
         object.__setattr__(self, "is_corrupted", _readonly(mask.copy()))
 
 
-def prepare_labels(original_train_labels, train_size=20000, ratio=0.2, seed=42):
+def _stage(progress, name):
+    return progress.stage(name) if progress is not None else nullcontext()
+
+
+def _labels_for_indices(labels, ids, ratio, seed, progress=None):
+    with _stage(progress, f"{ratio:.0%}: generate exact corrupted labels"):
+        clean = labels[ids]
+        noisy, mask = symmetric_noise(clean, ratio, noise_seed(seed, ratio))
+        return TrainingMetadata(ids, noisy, seed, ratio), AnalysisMetadata(clean, mask)
+
+
+def prepare_labels(original_train_labels, train_size=20000, ratio=0.2, seed=42, *, progress=None):
     """Initial construction only; return separate training and analysis objects."""
-    labels = _labels(original_train_labels)
-    ids = stratified_indices(labels, train_size, seed)
-    clean = labels[ids]
-    noisy, mask = symmetric_noise(clean, ratio, noise_seed(seed, ratio))
-    return TrainingMetadata(ids, noisy, seed, ratio), AnalysisMetadata(clean, mask)
+    with _stage(progress, "Select deterministic class-stratified sample IDs"):
+        labels = _labels(original_train_labels)
+        ids = stratified_indices(labels, train_size, seed)
+    return _labels_for_indices(labels, ids, ratio, seed, progress)
 
 
-def save_metadata(training, analysis, directory):
-    """Persist separate model-facing and analysis-only artifacts; reject conflicts."""
+def save_metadata(training, analysis, directory, *, progress=None):
+    """Verify/reuse finals and complete compatible partial writes; never mix runs."""
     directory = Path(directory)
     expected_mask = training.noisy_labels != analysis.clean_labels
     if not np.array_equal(expected_mask, analysis.is_corrupted):
         raise ValueError("Corruption mask is inconsistent with clean/provided labels")
     if int(expected_mask.sum()) != training.summary()["expected_corruptions"]:
         raise ValueError("Incorrect corruption count")
-    paths = [directory / name for name in ("training.npz", "analysis.npz", "metadata.json")]
-    if any(path.exists() for path in paths):
-        if not all(path.exists() for path in paths):
-            raise ValueError("Incomplete data metadata; inspect the directory before recovery")
-        saved = load_training_metadata(directory)
-        old_analysis = load_analysis_metadata(directory)
-        if (saved.summary() != training.summary()
-                or not np.array_equal(old_analysis.clean_labels, analysis.clean_labels)
-                or not np.array_equal(old_analysis.is_corrupted, analysis.is_corrupted)):
-            raise ValueError("Existing metadata does not match this experiment; refusing overwrite")
-        return
-    directory.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(paths[0], original_indices=training.original_indices, noisy_labels=training.noisy_labels)
-    np.savez_compressed(paths[1], clean_labels=analysis.clean_labels, is_corrupted=analysis.is_corrupted)
-    details = {**training.summary(), "normalization_mean": CIFAR_MEAN, "normalization_std": CIFAR_STD,
+    arrays = {
+        "training.npz": {"original_indices": training.original_indices, "noisy_labels": training.noisy_labels},
+        "analysis.npz": {"clean_labels": analysis.clean_labels, "is_corrupted": analysis.is_corrupted},
+    }
+    details = {**training.summary(), "normalization_mean": list(CIFAR_MEAN), "normalization_std": list(CIFAR_STD),
                "strong_jitter": STRONG_JITTER, "schema_version": 1}
-    paths[2].write_text(json.dumps(details, indent=2) + "\n", encoding="utf-8")
+    with _stage(progress, f"{training.noise_ratio:.0%}: verify existing metadata at {directory}"):
+        for name, expected in arrays.items():
+            path = directory / name
+            if path.exists():
+                try:
+                    with np.load(path, allow_pickle=False) as saved:
+                        valid = set(saved.files) == set(expected) and all(np.array_equal(saved[key], value) for key, value in expected.items())
+                except (OSError, ValueError, EOFError) as error:
+                    raise ValueError(f"Unreadable metadata {path}; preserved for inspection. Use a fresh data_checks directory; do not delete experiment checkpoints.") from error
+                if not valid:
+                    raise ValueError(f"Existing metadata does not match this experiment: {path}; refusing overwrite")
+        manifest = directory / "metadata.json"
+        if manifest.exists():
+            try:
+                previous = json.loads(manifest.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as error:
+                raise ValueError(f"Unreadable metadata {manifest}; preserved for inspection") from error
+            if previous != details:
+                raise ValueError(f"Existing metadata does not match this experiment: {manifest}; refusing overwrite")
+    with _stage(progress, f"{training.noise_ratio:.0%}: ensure metadata directory"):
+        directory.mkdir(parents=True, exist_ok=True)
+    for name, expected in arrays.items():
+        path = directory / name
+        if path.exists():
+            if progress is not None:
+                progress.log(f"Reusing verified metadata: {path}")
+            continue
+        with _stage(progress, f"{training.noise_ratio:.0%}: save {path}"):
+            temporary = path.with_name(path.name + ".tmp")
+            with temporary.open("wb") as output:
+                np.savez_compressed(output, **expected)
+            with np.load(temporary, allow_pickle=False) as saved:
+                if not all(np.array_equal(saved[key], value) for key, value in expected.items()):
+                    raise ValueError(f"Metadata write verification failed: {temporary}")
+            if path.exists():
+                raise FileExistsError(f"Another preparation is writing {path}; run only one writer")
+            temporary.replace(path)
+    if not manifest.exists():
+        with _stage(progress, f"{training.noise_ratio:.0%}: save {manifest}"):
+            temporary = manifest.with_name(manifest.name + ".tmp")
+            temporary.write_text(json.dumps(details, indent=2) + chr(10), encoding="utf-8")
+            if json.loads(temporary.read_text(encoding="utf-8")) != details:
+                raise ValueError(f"Metadata write verification failed: {temporary}")
+            if manifest.exists():
+                raise FileExistsError(f"Another preparation is writing {manifest}; run only one writer")
+            temporary.replace(manifest)
 
 
 def load_training_metadata(directory):
@@ -280,28 +328,92 @@ def make_training_datasets(data, transforms=None):
             "statistics": NoisyLabelDataset(data, transforms["eval"])}
 
 
-def _cifar10(root, *, train, download):
-    # Real loader is deliberately lazy, never imported during local noise tests.
-    from torchvision.datasets import CIFAR10
-    return CIFAR10(root=str(Path(root)), train=train, download=download)
+def _cifar10(root, *, train, download, progress=None):
+    """Observable torchvision loading; no duplicate checksum pass per instance."""
+    manager = nullcontext(progress) if progress is not None else PreparationProgress()
+    with manager as reporter:
+        root = Path(root).expanduser().resolve()
+        reporter.log(f"Shared CIFAR cache: {root}; split={'train' if train else 'test'}; download={download}")
+        if "/content/drive/" in root.as_posix():
+            reporter.log("Data cache is on mounted Drive; /content/data avoids slow image/cache I/O. Metadata may remain on Drive.")
+        with reporter.stage("Import torchvision CIFAR loader"):
+            from torchvision.datasets import CIFAR10
+            from torchvision.datasets.utils import download_url, extract_archive
+
+        class ObservableCIFAR10(CIFAR10):
+            def _check_integrity(self):
+                if getattr(self, "_verified_files", False):
+                    return True
+                with reporter.stage("Verify extracted CIFAR batch checksums"):
+                    valid = super()._check_integrity()
+                self._verified_files = valid
+                return valid
+
+            def download(self):
+                if self._check_integrity():
+                    reporter.log("Extracted CIFAR cache is valid; skipping download and extraction.")
+                    return
+                archive = Path(self.root) / self.filename
+                reporter.log(f"Archive: {archive}; existing={archive.exists()}. Valid archives are reused; incomplete archives must be downloaded again.")
+                with reporter.stage(f"Download/verify CIFAR archive from {self.url}"):
+                    download_url(self.url, self.root, filename=self.filename, md5=self.tgz_md5)
+                with reporter.stage(f"Extract CIFAR archive into {self.root}"):
+                    extract_archive(str(archive), self.root)
+
+        # This total includes nested integrity/download/extraction times, not an
+        # additional independent duration to add to them.
+        with reporter.stage("Initialize CIFAR split (cache checks and batch loading)"):
+            source = ObservableCIFAR10(root=str(root), train=train, download=download)
+        reporter.log(f"Loaded {len(source.targets)} {'training' if train else 'test'} images into memory.")
+        return source
 
 
-def prepare_cifar10_training(settings, ratio, data_root, metadata_root, *, download=True):
-    """Colab preparation facade: save analysis separately, return training data only."""
-    ratio = _noise_ratio(ratio)
-    if ratio not in settings["noise_ratios"]:
-        raise ValueError("Noise ratio is absent from the experiment configuration")
-    source = _cifar10(data_root, train=True, download=download)
+def _prepare_conditions(settings, ratios, data_root, metadata_paths, download, progress):
+    ratios = [_noise_ratio(ratio) for ratio in ratios]
+    if not ratios or len(set(ratios)) != len(ratios) or any(ratio not in settings["noise_ratios"] for ratio in ratios):
+        raise ValueError("Use distinct configured noise ratios")
+    kwargs = {"train": True, "download": download}
+    if progress is not None:
+        kwargs["progress"] = progress
+    source = _cifar10(data_root, **kwargs)
     if len(source.targets) != 50000:
         raise ValueError("Expected the official 50,000-image CIFAR-10 training split")
-    training, analysis = prepare_labels(source.targets, settings["train_size"], ratio, settings["seed"])
-    save_metadata(training, analysis, metadata_root)
-    return TrainingData(np.array(source.data[training.original_indices], copy=True), training)
+    with _stage(progress, "Select deterministic class-stratified sample IDs (shared by noise conditions)"):
+        labels = _labels(source.targets)
+        ids = stratified_indices(labels, settings["train_size"], settings["seed"])
+    with _stage(progress, "Copy selected training images once (shared by noise conditions)"):
+        # NumPy advanced indexing already owns a copy; a second np.array(copy=True)
+        # duplicated the 20k image copy in the old one-condition implementation.
+        images = source.data[ids]
+    result = {}
+    for ratio in ratios:
+        training, analysis = _labels_for_indices(labels, ids, ratio, settings["seed"], progress)
+        save_metadata(training, analysis, metadata_paths[ratio], progress=progress)
+        result[ratio] = TrainingData(images, training)
+        if progress is not None:
+            progress.log(f"{ratio:.0%}: ready; {len(training.noisy_labels)} examples, {int(analysis.is_corrupted.sum())} changed labels; subset checksum={training.summary()['subset_checksum']}")
+    return result
 
 
-def load_cifar10_test(data_root, *, download=True, transform=None):
+def prepare_cifar10_training(settings, ratio, data_root, metadata_root, *, download=True, progress=None):
+    """Single-condition facade retained for callers; analysis is saved separately."""
+    ratio = _noise_ratio(ratio)
+    return _prepare_conditions(settings, [ratio], data_root, {ratio: Path(metadata_root)}, download, progress)[ratio]
+
+
+def prepare_cifar10_conditions(settings, ratios, data_root, metadata_root, *, download=True, progress=None):
+    """One source load and image selection; separate reproducible noise artifacts."""
+    ratios = [_noise_ratio(ratio) for ratio in ratios]
+    paths = {ratio: Path(metadata_root) / f"noise_{round(100 * ratio)}" for ratio in ratios}
+    return _prepare_conditions(settings, ratios, data_root, paths, download, progress)
+
+
+def load_cifar10_test(data_root, *, download=True, transform=None, progress=None):
     """Separate entry point for evaluation; never corrupt or subsample test labels."""
-    source = _cifar10(data_root, train=False, download=download)
+    kwargs = {"train": False, "download": download}
+    if progress is not None:
+        kwargs["progress"] = progress
+    source = _cifar10(data_root, **kwargs)
     if len(source.targets) != 10000:
         raise ValueError("Expected the untouched official 10,000-image test split")
     if transform is None:
@@ -334,7 +446,8 @@ def main():
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--synthetic-check", action="store_true")
     mode.add_argument("--prepare", action="store_true", help="Colab: download/prepare real training data")
-    parser.add_argument("--noise", type=float, choices=(0.2, 0.4))
+    parser.add_argument("--noise", type=float, choices=(0.2, 0.4), nargs="+", help="One or both noise ratios; multiple ratios share one CIFAR load")
+    parser.add_argument("--no-download", action="store_true", help="Use an existing verified CIFAR cache only")
     parser.add_argument("--data-root", type=Path)
     parser.add_argument("--metadata-root", type=Path)
     args = parser.parse_args()
@@ -344,14 +457,29 @@ def main():
     else:
         if args.noise is None or args.data_root is None or args.metadata_root is None:
             parser.error("--prepare requires --noise, --data-root and --metadata-root")
-        data = prepare_cifar10_training(settings, args.noise, args.data_root, args.metadata_root)
-        datasets = make_training_datasets(data)
-        weak, strong, _, position = datasets["adaptive"][0]
-        print(json.dumps({**data.metadata.summary(),
-                          "dataset_lengths": {key: len(value) for key, value in datasets.items()},
-                          "weak_shape": list(weak.shape), "strong_shape": list(strong.shape),
-                          "first_subset_position": position,
-                          "metadata_root": str(args.metadata_root)}, indent=2))
+        with PreparationProgress() as progress:
+            progress.log(f"Preparation only, no model training. Data root={args.data_root}; metadata root={args.metadata_root}")
+            if len(args.noise) == 1:
+                ratio = args.noise[0]
+                prepared = {ratio: prepare_cifar10_training(settings, ratio, args.data_root, args.metadata_root,
+                                                          download=not args.no_download, progress=progress)}
+            else:
+                prepared = prepare_cifar10_conditions(settings, args.noise, args.data_root, args.metadata_root,
+                                                      download=not args.no_download, progress=progress)
+            with progress.stage("Create transforms and check one weak/strong image per condition"):
+                transforms = make_transforms()
+                reports = []
+                for ratio, data in prepared.items():
+                    datasets = make_training_datasets(data, transforms)
+                    weak, strong, _, position = datasets["adaptive"][0]
+                    directory = args.metadata_root if len(args.noise) == 1 else args.metadata_root / f"noise_{round(100 * ratio)}"
+                    reports.append({**data.metadata.summary(),
+                                    "dataset_lengths": {key: len(value) for key, value in datasets.items()},
+                                    "weak_shape": list(weak.shape), "strong_shape": list(strong.shape),
+                                    "first_subset_position": position, "metadata_root": str(directory)})
+            progress.log(f"All conditions ready in {monotonic()-progress.started:.2f}s; nested stage durations are not additive.")
+            print(json.dumps({"preparations": reports, "stage_timings": progress.events,
+                              "preparation_seconds": monotonic() - progress.started}, indent=2), flush=True)
 
 
 if __name__ == "__main__":

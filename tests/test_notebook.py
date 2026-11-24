@@ -30,19 +30,21 @@ def test_notebook_schema_syntax_and_cleared_outputs():
     assert any("--resume" in source for source in code)
 
 
-def test_checked_module_calls_preserve_paths_with_spaces_and_reject_missing_modules(tmp_path):
+def test_checked_module_calls_preserve_paths_with_spaces_and_reject_missing_modules(tmp_path, monkeypatch):
     repo = tmp_path / "source checkout"
     (repo / "src").mkdir(parents=True)
     (repo / "src" / "train.py").touch()
     calls = []
-    env = {"REPO_DIR": repo, "sys": sys, "subprocess": SimpleNamespace(run=lambda args, **kwargs: calls.append((args, kwargs)))}
+    from src import commands
+    monkeypatch.setattr(commands, "run_python_module", lambda module, *args, **kwargs: calls.append((module, args, kwargs)))
+    env = {"REPO_DIR": repo}
     helper = next(source for source in sources()[1] if source.startswith("def run_module"))
     exec(helper, env)
     target = tmp_path / "Drive outputs with spaces"
     env["run_module"]("src.train", "--output-root", target, "--resume")
-    args, kwargs = calls[0]
-    assert args == [sys.executable, "-m", "src.train", "--output-root", str(target), "--resume"]
-    assert kwargs == {"cwd": repo, "check": True}
+    module, args, kwargs = calls[0]
+    assert module == "src.train" and args == ("--output-root", target, "--resume")
+    assert kwargs == {"repo_root": repo, "timeout_seconds": None}
     with pytest.raises(RuntimeError, match="not implemented yet"):
         env["run_module"]("src.evaluate")
 

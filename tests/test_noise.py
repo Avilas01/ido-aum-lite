@@ -86,8 +86,8 @@ def test_metadata_is_separate_immutable_and_roundtrips_without_analysis_reads(tm
     # Training metadata can be loaded when analysis artifacts are unavailable.
     (root / "analysis.npz").unlink()
     assert data.load_training_metadata(root).summary() == training.summary()
-    with pytest.raises(ValueError, match="Incomplete"):
-        data.save_metadata(training, analysis, root)
+    data.save_metadata(training, analysis, root)
+    np.testing.assert_array_equal(data.load_analysis_metadata(root).is_corrupted, analysis.is_corrupted)
 
 
 def test_metadata_rejects_tampering_and_conflicting_configuration(tmp_path, tiny_split):

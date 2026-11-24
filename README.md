@@ -9,7 +9,9 @@ Develop with VS Code and Codex on Windows. Run all full training, benchmarking a
 - `config.py`: CPU-safe configuration loader/validator and scientific-settings fingerprint.
 - `configs/default.json`: portable scientific defaults (20k images, 6+6 epochs, seed 42).
 - `notebooks/colab_runner.ipynb`: Drive mount, pinned checkout, dependencies/GPU checks, configuration, benchmark/run/resume CLI orchestration.
-- `src/data.py`: NumPy-only reproducible label preparation, stable-ID dataset adapters and lazy Colab CIFAR/transform loading.
+- `src/data.py`: NumPy-only reproducible label preparation, observable cached CIFAR loading and stable-ID datasets.
+- `src/commands.py`: unbuffered project-module execution with streamed stdout/stderr, heartbeat and child cleanup.
+- `src/preparation_progress.py`: preparation stage timings and liveness messages.
 - `src/model.py`: non-pretrained CIFAR-stem ResNet-18 factory, imported lazily.
 - `src/statistics.py`: stable-ID WE/AUM/CE, complete-pass validation, branch copies and epoch snapshots.
 - `src/smoke.py`: isolated GPU-only model/tracking verification on 512 generated examples.
@@ -88,9 +90,34 @@ Persisted files under each metadata directory:
 
 - training.npz: original_indices and noisy_labels only; load_training_metadata never opens analysis.npz.
 - analysis.npz: clean_labels and is_corrupted, for retrospective evaluation/sanity checks only.
-- metadata.json: subset/noisy-label checksums, sample count, ratio, seed streams and fixed transform settings. Existing incompatible or incomplete artifacts are rejected, not silently overwritten.
+- metadata.json: subset/noisy-label checksums, sample count, ratio, seed streams and fixed transform settings. Existing compatible files are verified/reused, valid partial metadata are completed after interruption, and conflicting/corrupt final files are rejected rather than silently overwritten. Temporary files are verified before publication.
 
 The weak view uses crop (32, padding 4), horizontal flip, tensor conversion and normalization. The strong view independently repeats crop/flip, adds ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05) before tensor conversion/normalization. Evaluation/statistics use only tensor conversion/normalization. Fixed channel mean=(0.4914, 0.4822, 0.4465) and std=(0.2470, 0.2435, 0.2616) are recorded with metadata. Standard/warm-up samples never compute an unused strong view. Training uses only noisy-label classes; clean originals and masks must never enter loss/score/selection functions.
+
+## Slow preparation: progress, cache reuse and safe retries
+
+The traceback in subprocess.wait()/os.waitpid() shows the notebook waiting for its child, not which child operation is slow. Previously python -m used buffered output and inherited notebook OS file descriptors without an explicit relay. The command printed its summary only at the end. Two separate --prepare commands also imported torchvision, verified/read the training batches and copied selected images twice. It did not augment all 20,000 images; only one weak/strong example per condition was checked. Torchvision skips a valid extracted download, so repeated downloads were not expected unless the cache was missing/corrupt or the runtime/data-root changed.
+
+The notebook now performs one preparation command for both noise conditions, loading/validating the source once and sharing one selected-image array. The exact subset/noise RNG streams and checksums are unchanged. Source downloads, archives, extracted batches and the final test check all use the same DATA_ROOT (/content/data), while only small metadata files go to Drive. The download/extraction wrapper uses torchvision's original archive URL, archive MD5, batch checksums and extraction utility; it does not substitute another dataset or weaken integrity checks. A verified instance avoids hashing every batch twice during its own constructor.
+
+run_module launches python -u with unbuffered output, merges stderr/stdout into a pipe, and forwards each line through Python into the visible Colab cell. It prints start/exit timing, a child PID heartbeat when quiet and recent output on failure. A reader thread keeps supervision responsive; interrupts/timeouts stop the child session instead of leaving an orphan process. Download progress is rate-limited to roughly one update per second when supported by tqdm. Preparation stages additionally print START/END/FAILED and elapsed seconds, with one heartbeat for the currently active stage. Initialization totals include nested download/check/extraction timing; those durations should not be added twice.
+
+To rerun Step 1 safely:
+
+1. Open the latest notebook. If you interrupted the old runner, stop any remaining preparation first and restart the Python session to clear cached imports. If you cannot confirm the old child stopped, use a fresh Colab runtime to avoid concurrent writers; /content/data may then need downloading again. Remount the same Drive and reuse RUN_ID. Do not delete Drive checkpoints/configuration or the local CIFAR cache.
+2. Rerun source checkout, dependency setup and Module command helper; a browser refresh alone does not update /content source. Respect any frozen experiment's recorded Git SHA rather than silently changing its methodology.
+3. Run hosted tests, then RUN_DATA_CHECK=True. The cell prints the exact cache/metadata locations and uses PREPARATION_TIMEOUT_SECONDS=900. That timeout applies only to this preparation check; it is not a training limit and can be increased explicitly for a slow first download.
+4. Watch the latest active stage. Download/verify archive means network/archive I/O; extracted-batch verification/loading means local cache reads; save metadata means Drive I/O. The final output includes per-stage and total preparation timings. This is data preparation, not ResNet training; a GPU does not speed the download.
+5. Valid extracted files skip download/extraction. If only the verified archive exists, torchvision reuses it for extraction. An interrupted/incomplete archive is checksum-checked and may need downloading again. A replacement Colab VM can lose /content/data; that expected first download is separate from your persistent metadata.
+6. Compatible metadata are reused/completed without altering label assignments. Corrupt or conflicting final files are preserved with a clear error; inspect them or choose a new directory under data_checks for a clean verification attempt. Never remove the runs directory or change noise/seed/size to get past a mismatch. Use only one writer for each verification directory.
+
+The combined CLI equivalent, from the Colab checkout, is:
+
+```bash
+python -u -m src.data --prepare --config configs/default.json --noise 0.2 0.4 --data-root /content/data --metadata-root /content/drive/MyDrive/ido-aum-lite/experiments/run-001/data_checks/manual
+```
+
+It writes separate noise_20 and noise_40 subdirectories. Existing single-noise commands retain their direct metadata-root layout. Add --no-download only when the local extracted cache is already complete; a missing/corrupt cache then fails instead of attempting network access. Timing/progress changes do not modify scientific configuration, dataset size, noise levels or training settings.
 
 ## Step 2: model, WE/AUM and diagnostic verification
 

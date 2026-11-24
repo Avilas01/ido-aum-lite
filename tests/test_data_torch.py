@@ -39,3 +39,32 @@ def test_statistics_transform_uses_fixed_channel_normalization():
     expected = (torch.ones(3) - torch.tensor(data.CIFAR_MEAN)) / torch.tensor(data.CIFAR_STD)
     assert torch.allclose(sample[:, 0, 0], expected)
     assert (label, position) == (2, 0)
+
+
+
+def test_observable_loader_reuses_real_torchvision_checksum_fixture(tmp_path, monkeypatch):
+    import hashlib
+    import pickle
+    import torchvision.datasets as datasets
+    import torchvision.datasets.utils as utils
+    folder = tmp_path / "fixture-cifar"
+    folder.mkdir()
+    def write(name, value):
+        raw = pickle.dumps(value)
+        (folder / name).write_bytes(raw)
+        return hashlib.md5(raw).hexdigest()
+    train_md5 = write("train_batch", {"data": np.zeros((2, 3072), dtype=np.uint8), "labels": [0, 1]})
+    test_md5 = write("test_batch", {"data": np.zeros((3, 3072), dtype=np.uint8), "labels": [2, 3, 4]})
+    meta_md5 = write("batches.meta", {"label_names": [str(i) for i in range(10)]})
+    monkeypatch.setattr(datasets.CIFAR10, "base_folder", "fixture-cifar")
+    monkeypatch.setattr(datasets.CIFAR10, "train_list", [["train_batch", train_md5]])
+    monkeypatch.setattr(datasets.CIFAR10, "test_list", [["test_batch", test_md5]])
+    monkeypatch.setattr(datasets.CIFAR10, "meta", {"filename": "batches.meta", "key": "label_names", "md5": meta_md5})
+    def no_network(*args, **kwargs):
+        raise AssertionError("Valid extracted fixture must skip download/extraction")
+    monkeypatch.setattr(utils, "download_url", no_network)
+    monkeypatch.setattr(utils, "extract_archive", no_network)
+    training = data._cifar10(tmp_path, train=True, download=True)
+    testing = data._cifar10(tmp_path, train=False, download=False)
+    assert training.targets == [0, 1] and testing.targets == [2, 3, 4]
+    assert training.data.shape == (2, 32, 32, 3) and testing.data.shape == (3, 32, 32, 3)
