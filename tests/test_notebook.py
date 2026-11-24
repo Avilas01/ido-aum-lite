@@ -10,7 +10,7 @@ import nbformat
 import pytest
 from config import load_config
 
-NOTEBOOK_PATH = Path(__file__).resolve().parents[1] / "notebooks" / "run_colab.ipynb"
+NOTEBOOK_PATH = Path(__file__).resolve().parents[1] / "notebooks" / "colab_runner.ipynb"
 
 
 def sources():
@@ -69,8 +69,10 @@ def test_manifest_freeze_is_valid_and_preserves_existing_configuration(tmp_path)
 
 
 def test_setup_stops_before_full_cpu_run(monkeypatch):
-    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: False)))
-    monkeypatch.setitem(sys.modules, "torchvision", SimpleNamespace())
-    gpu_check = next(source for source in sources()[1] if source.startswith("import torch"))
+    import src.colab_dependencies as dependencies
+    def unavailable(*args, **kwargs):
+        raise RuntimeError("GPU unavailable")
+    monkeypatch.setattr(dependencies, "ensure_colab_dependencies", unavailable)
+    gpu_check = next(source for source in sources()[1] if "dependency_status = ensure_colab_dependencies" in source)
     with pytest.raises(RuntimeError, match="GPU unavailable"):
-        exec(gpu_check, {})
+        exec(gpu_check, {"REPO_DIR": NOTEBOOK_PATH.parents[1], "sys": sys})

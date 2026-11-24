@@ -127,7 +127,8 @@ Coefficients do **not** imply equal gradient influence. With ten classes, class-
 ```text
 ido-aum-lite/
 ├── README.md
-├── requirements.txt       # common non-torch runtime dependencies; preserve Colab torch pair
+├── requirements.txt       # lightweight Windows dependencies, no torch/CUDA
+├── requirements-colab.txt # training/evaluation dependencies including torch/torchvision
 ├── requirements-dev.txt   # lightweight development/test extras
 ├── configs/
 │   └── default.json       # experiment parameters, no machine-specific absolute paths
@@ -135,6 +136,7 @@ ido-aum-lite/
 ├── config.py
 ├── src/
 │   ├── __init__.py
+│   ├── colab_dependencies.py # GPU dependency inspection/repair, safe without local torch
 │   ├── checkpoints.py   # complete state, checksums, persistent save/restore
 │   ├── data.py          # download, stratified indices, noise, stable IDs, transformations
 │   ├── model.py         # CIFAR-adapted ResNet-18
@@ -145,7 +147,7 @@ ido-aum-lite/
 │   ├── evaluate.py      # sole owner: test/detection metrics, aggregation/metrics.csv
 │   └── plots.py         # results tables and saved PNG plots
 ├── notebooks/
-│   └── run_colab.ipynb  # thin install/run notebook, no duplicate research logic
+│   └── colab_runner.ipynb  # thin install/run notebook, no duplicate research logic
 ├── tests/
 │   ├── test_noise.py
 │   ├── test_statistics.py
@@ -164,7 +166,7 @@ Ignore in `.gitignore`: `data/`, `.venv/`, `__pycache__/`, `*.pt`, `*.pth`, temp
 
 Use reusable Python modules as the sole implementation of data preparation, statistics, scoring, losses, training, evaluation and plotting. The notebook orchestrates CLI calls only; it must not contain model definitions, epoch loops or a second copy of research logic. config.py validates/loads experiment settings; configs/default.json holds portable defaults. Keep storage paths separate from scientific hyperparameters so relocating a run on restart does not change its scientific configuration identity.
 
-Use pathlib.Path throughout, create output directories explicitly, and pass data/output locations through CLI arguments. No drive-letter paths, Windows separators, PowerShell commands, user-specific directories or unconditional google.colab imports in src/. Imports of Colab helpers belong only in the notebook. Keep command entry points under if __name__ == '__main__' so Windows DataLoader worker spawning is safe. Windows tests default to num_workers=0; Colab may use the configured two workers. Do not install CUDA or require local CUDA availability for CPU tests.
+Use pathlib.Path throughout, create output directories explicitly, and pass data/output locations through CLI arguments. No drive-letter paths, Windows separators, PowerShell commands, user-specific directories or unconditional google.colab imports in src/. Imports of Colab helpers belong only in the notebook. Keep command entry points under if __name__ == '__main__' so Windows DataLoader worker spawning is safe. Windows runs only lightweight configuration/notebook/data-independent tests without torch, torchvision or CUDA. PyTorch-dependent tests and model smoke tests run in Colab; mark tests torch and use importorskip before torch-dependent imports so local collection remains safe. Colab may use the configured two workers.
 
 | Location | Colab example | Lifetime/purpose |
 |---|---|---|
@@ -180,11 +182,11 @@ RUN_ID identifies one frozen experiment configuration, not each Colab session. S
 
 ### Lightweight Colab notebook specification
 
-Create notebooks/run_colab.ipynb with empty outputs and a small number of setup/orchestration cells:
+Create notebooks/colab_runner.ipynb with empty outputs and a small number of setup/orchestration cells:
 
 1. Explain the Windows/Colab split and select Runtime > Change runtime type > GPU. Mount Google Drive using google.colab.drive.mount('/content/drive'); request normal interactive authorisation rather than storing credentials.
 2. Define REPO_URL, an explicit Git commit/ref, RUN_ID, REPO_DIR=/content/ido-aum-lite, DATA_ROOT=/content/data and persistent experiment root using pathlib. Clone the repository or access an existing clean checkout; verify its Git SHA. On restart use the SHA recorded in the persistent manifest. Never silently pull a new version into an interrupted experiment; use a new RUN_ID for intentional methodology/code changes.
-3. Install common requirements using sys.executable -m pip with subprocess.run([...], check=True, cwd=REPO_DIR). Preserve and import-check Colab's installed compatible torch/torchvision pair rather than blindly replacing it. Print Python, torch, torchvision, CUDA and GPU versions. Fail clearly if torch.cuda.is_available() is false; never silently launch a full CPU run.
+3. Use src.colab_dependencies to read requirements-colab.txt, installing missing common packages without upgrading satisfied ones. Check allocated GPU before installation; inspect installed torch/torchvision and verify imports, torchvision torch-version metadata, CUDA and a tiny compiled CUDA operator in a fresh subprocess. Preserve a working GPU pair. Repair missing/incompatible pairs together using an officially matched pair (torch 2.14.1 / torchvision 0.29.1, cu126), stop after changes and instruct Runtime > Restart session, then rerun setup. Never continue with stale native imports or silently run on CPU. Print Python, package, CUDA and GPU versions. Optional hosted-test cell installs requirements-dev.txt; all PyTorch-dependent tests execute in Colab.
 4. Load/validate configs/default.json for a new benchmark, or the persistent frozen experiment_config.json for a restart. Show subset size, noise levels, W/C and all storage paths. Verify persistent storage is writable and enough space is available. Keep the frozen configuration immutable after full runs start.
 5. For a NEW experiment only, call the benchmark CLI, choose any uniform fallback by runtime only, and publish the frozen configuration and code/environment manifest to the persistent root before training. For a restart skip the benchmark/fallback selection and reuse those artifacts.
 6. Run src.train for noise 0.2 and 0.4 via checked subprocess argument lists, passing --device cuda, --data-root, --output-root, --config and --resume. --resume must safely start missing stages and skip completed stages; the same commands are used on first execution and restart. Keep notebook controls for selecting either noise condition if GPU time requires separate sessions.
@@ -199,9 +201,9 @@ Send **one prompt at a time**, inspect its tests, and commit when passing. Use P
 
 ### Step 0 — Repo, configuration and Colab GPU entry point (0.75 h)
 **Codex prompt:**
-> Create a minimal PyTorch research repo named `ido-aum-lite` matching the directory structure in this plan. Add `config.py` with 20,000 CIFAR-10 train images, 10,000 original test images, seed 42, noise ratios 0.2/0.4, ResNet-18 CIFAR stem, batch 128, 6 Stage 1 epochs, 6 Stage 2 continuation epochs, AdamW lr 3e-4, weight decay 1e-4. Add common requirements for numpy, scipy (if needed), pandas, scikit-learn and matplotlib, with pytest in development extras. Document a compatible CPU-only torch/torchvision install for Windows tests separately; preserve Colab's installed torch pair and verify imports before using it. Add `.gitignore`, simple README and `notebooks/run_colab.ipynb` that installs requirements and runs smoke/full commands. Do not commit data or checkpoints. Centralise train_size, warmup_epochs, continuation_epochs, threshold 0.7, classification floor 0.1 and near_zero_epsilon 1e-8. Derive all counts/display values from configuration; support loading a saved experiment configuration with --config. Create configs/default.json and the thin notebook exactly as specified in Section G: checked module commands, Drive persistence, pinned checkout, CUDA guard and restart flow. Keep Colab imports out of reusable modules and use pathlib paths. No training logic yet.
+> Create a minimal PyTorch research repo named `ido-aum-lite` matching the directory structure in this plan. Add `config.py` with 20,000 CIFAR-10 train images, 10,000 original test images, seed 42, noise ratios 0.2/0.4, ResNet-18 CIFAR stem, batch 128, 6 Stage 1 epochs, 6 Stage 2 continuation epochs, AdamW lr 3e-4, weight decay 1e-4. Keep requirements.txt for lightweight Windows dependencies (PyYAML, numpy, scipy, pandas, scikit-learn and matplotlib), with pytest/nbformat/packaging in development extras. Do not install torch, torchvision or CUDA locally. Add requirements-colab.txt explicitly listing torch, torchvision and all training/evaluation/notebook dependencies. Use src.colab_dependencies to preserve a verified working GPU pair and repair both versions together only when needed; document required runtime restart after PyTorch changes. Add `.gitignore`, simple README and `notebooks/colab_runner.ipynb` that installs requirements and runs smoke/full commands. Do not commit data or checkpoints. Centralise train_size, warmup_epochs, continuation_epochs, threshold 0.7, classification floor 0.1 and near_zero_epsilon 1e-8. Derive all counts/display values from configuration; support loading a saved experiment configuration with --config. Create configs/default.json and the thin notebook exactly as specified in Section G: checked module commands, Drive persistence, pinned checkout, CUDA guard and restart flow. Keep Colab imports out of reusable modules and use pathlib paths. No training logic yet.
 
-**Check:** `python -m pytest` can be invoked, the notebook is valid and code cells parse; local unit tests import on Windows without CUDA or google.colab. In Colab, setup mounts Drive, installs dependencies, verifies the Git SHA and reports CUDA/GPU; full-run cells refuse CPU fallback. Test paths containing spaces and requirements without replacing a platform-provided compatible torch/torchvision pair.
+**Check:** In the existing Windows .venv run python -m pytest -q -m "not torch", python -m config and python -m pip check. Validate requirement syntax and that Windows dependency trees exclude torch/torchvision/CUDA; local tests use mocks without real PyTorch imports. Check notebook schema/Python syntax and paths containing spaces. PyTorch-dependent tests run in Colab with requirements-colab.txt plus test extras; markers/importorskip keep local collection safe. Hosted verification must check Drive/Git SHA, working-pair preservation, missing/broken-pair repair, CUDA/GPU reporting and restart-then-rerun before training. Step 0 dependency verification must not download CIFAR-10 or implement Step 1.
 
 **Commit:** `chore: project scaffold and GPU notebook`.
 
@@ -215,7 +217,7 @@ Send **one prompt at a time**, inspect its tests, and commit when passing. Use P
 
 ### Step 2 — Model, WE and AUM tracking (2 h)
 **Codex prompt:**
-> Implement CIFAR-adapted non-pretrained ResNet-18 in `src/model.py`, output shape `[batch, 10]`. Implement `src/statistics.py` for stable-ID per-example end-of-epoch tracking on a deterministic, non-shuffled inference loader: increment WE once per epoch when argmax != noisy label; accumulate raw-logit margin (assigned-label logit minus largest other-class logit) and return AUM as mean over tracked epochs. Keep arrays and per-example observation counts keyed by subset positions, not loader order. Save WE, cumulative margin sums, counts and AUM after each default warm-up epoch (six); preserve historical snapshots on checkpoint reload. Collect the common deterministic unweighted noisy-label CE in the same pass, with a CE-only pass for standard continuation. Restore train mode before the next training epoch. Implement toy-logit tests that hand-calculate margins and WE and test shuffled input IDs, exactly-once coverage, observation counts and history persistence. Provide a 512-image CPU/GPU smoke test (1 epoch, minimal mini-batches). Do not compute WE only on augmented minibatches during gradient training.
+> Implement CIFAR-adapted non-pretrained ResNet-18 in `src/model.py`, output shape `[batch, 10]`. Implement `src/statistics.py` for stable-ID per-example end-of-epoch tracking on a deterministic, non-shuffled inference loader: increment WE once per epoch when argmax != noisy label; accumulate raw-logit margin (assigned-label logit minus largest other-class logit) and return AUM as mean over tracked epochs. Keep arrays and per-example observation counts keyed by subset positions, not loader order. Save WE, cumulative margin sums, counts and AUM after each default warm-up epoch (six); preserve historical snapshots on checkpoint reload. Collect the common deterministic unweighted noisy-label CE in the same pass, with a CE-only pass for standard continuation. Restore train mode before the next training epoch. Implement toy-logit tests that hand-calculate margins and WE and test shuffled input IDs, exactly-once coverage, observation counts and history persistence. Provide a 512-image Colab GPU smoke test (1 epoch, minimal mini-batches). Do not compute WE only on augmented minibatches during gradient training.
 
 **Check:** `python -m pytest tests/test_statistics.py -q`; verify finite AUM, WE in `[0, tracked_epochs]`, correct output shapes.
 
@@ -310,8 +312,8 @@ All fallback fields live in central configuration; the frozen JSON drives both f
 
 ## J. User's manual actions
 
-1. Develop in VS Code with Codex on Windows. Create the GitHub repository, commit source/configuration/notebook changes and push reviewed commits. Use a local virtual environment, CPU-compatible torch/torchvision and development requirements for lightweight tests/debugging only. Run python -m pytest; optional tiny smoke tests explicitly use --smoke --device cpu and num_workers=0. Unit tests use synthetic inputs/fixtures, not full data downloads. No local GPU is required; do not run full training/evaluation on the laptop.
-2. Open notebooks/run_colab.ipynb in Google Colab, select GPU and run setup. Mount Drive, choose RUN_ID and the repository ref, clone into /content, install dependencies and verify CUDA. Use /content/data for disposable CIFAR-10 cache; no Windows paths in Colab.
+1. Develop in VS Code with Codex on Windows. Create the GitHub repository, commit source/configuration/notebook changes and push reviewed commits. Use the existing local virtual environment and lightweight requirements/development extras only, without torch/torchvision/CUDA. Run python -m pytest -q -m "not torch". Run PyTorch-dependent tests and model smoke tests in Colab. Unit tests use synthetic inputs/fixtures, not full data downloads. No local GPU is required; do not run full training/evaluation on the laptop.
+2. Open notebooks/colab_runner.ipynb in Google Colab, select GPU and run setup. Mount Drive, choose RUN_ID and the repository ref, clone into /content, install dependencies and verify CUDA. Use /content/data for disposable CIFAR-10 cache; no Windows paths in Colab.
 3. For a new RUN_ID, benchmark a full adaptive epoch including persistent checkpoint I/O, choose a uniform fallback if needed and save frozen configuration plus Git SHA/environment manifest to Drive. Persist checkpoints, score histories and logs after each epoch, not only at session end.
 4. Execute noise 20% then 40% with the same frozen configuration, --device cuda and --resume through src.train. Separate Colab sessions may finish different conditions. Inspect training diagnostics/files without choosing changes from test/detection quality. Run src.evaluate and src.plots on Colab afterwards with persistent output paths.
 5. Review six final rows and four essential figures; commit only small reviewed metrics, figures, configuration and report. Keep checkpoints on Drive and data/tokens/checkpoints out of Git.
@@ -329,8 +331,8 @@ The notebook orchestrates; reusable modules own all substantive training, integr
 
 ## K. Acceptance checklist
 
-- [ ] Runnable GitHub repository with reusable Python modules, thin Colab notebook, portable configuration and runtime/development requirements.
-- [ ] Windows CPU-only tests/debugging require neither local CUDA nor google.colab; full training/benchmark/evaluation run on Colab GPU and refuse CPU fallback.
+- [ ] Runnable GitHub repository with reusable Python modules, thin Colab notebook, portable configuration and separate Windows, Colab and test dependency files.
+- [ ] Windows lightweight tests/debugging require neither torch/torchvision, local CUDA nor google.colab; PyTorch-dependent tests run in Colab; full training/benchmark/evaluation run on Colab GPU and refuse CPU fallback.
 - [ ] pathlib/CLI paths are Linux-compatible; notebook handles spaces and duplicates no research logic.
 - [ ] Drive stores frozen configuration, code/environment manifest, checkpoints, histories, logs and results; fresh-runtime resume recovers the previous verified epoch.
 - [ ] Configured deterministic stratified training IDs (20,000 default; 10,000 fallback); immutable official 10,000-image test set.

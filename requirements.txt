@@ -1,6 +1,7 @@
-# Common runtime dependencies. Preserve Colab installed torch/torchvision.
+# Lightweight Windows development dependencies. No PyTorch or CUDA.
+PyYAML
 numpy
-scipy
 pandas
-scikit-learn
 matplotlib
+scipy
+scikit-learn

@@ -1,0 +1,15 @@
+# Colab GPU only. Use the notebook bootstrap rather than installing this on Windows.
+# Keep an already working GPU pair; torchvision metadata constrains its torch version.
+# Repair only: torch==2.14.1 + torchvision==0.29.1, from the official cu126 index.
+# https://pytorch.org/get-started/previous-versions/
+torch
+torchvision
+numpy
+pandas
+matplotlib
+scikit-learn
+scipy
+PyYAML
+Pillow
+ipython
+packaging
