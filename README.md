@@ -2,7 +2,7 @@
 
 Develop with VS Code and Codex on Windows. Run all full training, benchmarking and final evaluation on a Google Colab Free GPU. A local GPU is not required.
 
-**Current stage: Step 2 implemented; hosted verification pending.** The CIFAR-adapted model, WE/AUM/common-CE tracker, history snapshots and isolated GPU smoke are implemented alongside Step 1 data preparation. NumPy tracker tests run locally without PyTorch. Model/collection tests and the GPU smoke must be run in Colab. Adaptive scoring/loss, the full experiment runner and final evaluation/plotting remain later stages; no model training or data download has run locally.
+**Current stage: Step 3 scoring/adaptive objective implemented; Step 3 PyTorch verification pending in Colab.** Step 2 hosted checks are complete, as confirmed by the user. Steps 1-2 provide deterministic data preparation, the CIFAR-adapted model, WE/AUM/common-CE tracking, history snapshots and the isolated GPU smoke. Step 3 adds NumPy-only within-class ranks and a shared adaptive loss with component diagnostics. The full experiment runner, checkpoint resume and final evaluation/plotting remain later stages; no model training or data download has run locally.
 
 ## Repository responsibilities
 
@@ -16,7 +16,9 @@ Develop with VS Code and Codex on Windows. Run all full training, benchmarking a
 - `src/model.py`: non-pretrained CIFAR-stem ResNet-18 factory, imported lazily.
 - `src/statistics.py`: stable-ID WE/AUM/CE, complete-pass validation, branch copies and epoch snapshots.
 - `src/smoke.py`: isolated GPU-only model/tracking verification on 512 generated examples.
-- Other research modules (planned): scoring, loss, full checkpoint/resume, training, evaluation and plotting.
+- `src/scores.py`: NumPy-only within-provided-label-class WE/inverted-AUM ranks and 50:50 hybrid suspicion.
+- `src/losses.py`: shared IDO-inspired adaptive objective and sample-weighted component diagnostics; torch imported only when computing loss.
+- Other research modules (planned): full checkpoint/resume, training, evaluation and plotting.
 - `requirements.txt`: lightweight Windows dependencies, excluding torch/torchvision/CUDA.
 - `requirements-colab.txt`: explicit training/evaluation dependencies including torch and torchvision.
 - `src/colab_dependencies.py`: Colab-only GPU dependency inspection/repair, safe to import locally without torch.
@@ -175,6 +177,32 @@ SampleStatistics(train_size) counts wrong predictions once per completed epoch a
 make_statistics_loader supplies deterministic eval transforms, shuffle=False and drop_last=False. collect_epoch_statistics uses model.eval() and torch.no_grad(), restores all previous module modes, and computes sample-mean unweighted noisy-label CE. Passing no tracker performs only that common diagnostic, without WE/AUM updates. No clean labels/masks are inputs to these APIs.
 
 During the future warm-up runner, call save_snapshot with a distinct epoch filename after every completed epoch (six by default). The .npz stores WE, cumulative margin sums, per-example observation counts, tracked epochs and AUM. Snapshots are verified before publication, identical repeat saves are idempotent, conflicting history is rejected, and AUM is validated against saved sums/counts on reload. Dataset/configuration/code checksums and full model/optimizer/RNG resume state belong to the future outer checkpoint layer.
+
+## Step 3: relative scoring and shared adaptive objective
+
+Local synthetic checks (no torch, download or training):
+
+```powershell
+./.venv/Scripts/python.exe -m pytest tests/test_scores.py tests/test_loss_diagnostics.py -q
+```
+
+In Colab, the existing opt-in hosted-test block discovers the new tests automatically. To run the focused checks from the checkout:
+
+```bash
+python -m pytest tests/test_scores.py tests/test_loss_diagnostics.py tests/test_losses.py -q
+```
+
+`percentile_rank_by_noisy_class(values, noisy_labels)` uses one-based average tie ranks and `(rank-0.5)/class_size`, preserving stable-ID array order. Singleton/all-tied classes return 0.5; empty classes are skipped. `suspicion_scores(tracker.we, tracker.aum, noisy_labels, observation_counts=tracker.observation_counts)` returns `ido_lite`, `aum` (ranked negative AUM), and their 50:50 `hybrid`. Positive, equal observation counts are required. Each complete noisy-label class has mean suspicion 0.5; these ranks are not corruption probabilities. Only provided labels and completed statistics are inputs.
+
+`heuristic_weights(s)` returns classification weight `0.1+0.9*(1-s)` and parabolic difficulty `4*s*(1-s)`. The classification floor and objective are experimental IDO-inspired simplifications, not original IDO/BMM.
+
+`adaptive_loss(weak_logits, strong_logits, noisy_labels, batch_scores, **loss_settings)` returns a differentiable scalar plus detached diagnostic numbers. Gather `batch_scores` from the frozen full-subset score vector by stable sample IDs. Both adaptive methods call this same function; only score inputs differ. Pass the central configuration's `pseudo_threshold`, `clean_weight_floor`, `pseudo_coefficient`, `consistency_coefficient` and `near_zero_epsilon` as `loss_settings`; function defaults match `configs/default.json`.
+
+The objective is `mean(c*CE(weak,noisy_y) + 0.5*s*mask*CE(strong,detached_weak_pseudo) + 0.5*d*class_mean((p_weak-p_strong)^2))`. Confidence uses the inclusive 0.7 threshold. Masked samples remain in the full-batch denominator, and consistency retains both gradient paths. Softmax/loss computations use float32 with autocast disabled internally. Frozen scores and pseudo-label creation are detached.
+
+Diagnostics include weighted supervised/pseudo/consistency losses, total, mean c/d, confidence fraction, and exact-zero/near-zero fractions (including zeros) for each component and total. `AdaptiveEpochSummary.update(logs)` and `.compute()` reduce every field by sample count, including partial final batches, and check that components sum to total. These record loss values, not gradient norms. The common deterministic unweighted noisy-label CE remains a separate Step 2 diagnostic.
+
+The future runner must freeze scores from all prior completed epochs, then train, collect deterministic statistics and compute scores for the next epoch. Step 3 does not add the staged runner, checkpoints, benchmark or full training. Blocks 10-13 remain disabled.
 
 ## Restart and resume
 
