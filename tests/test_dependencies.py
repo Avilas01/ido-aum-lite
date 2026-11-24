@@ -119,3 +119,15 @@ def test_real_probe_logic_rejects_mismatched_or_cpu_only_mock_pair(monkeypatch, 
 def test_bootstrap_imports_without_site_packages_or_torch():
     script = "import sys; import config; import src.colab_dependencies; assert 'torch' not in sys.modules; assert 'torchvision' not in sys.modules"
     subprocess.run([sys.executable, "-S", "-c", script], cwd=ROOT, check=True)
+
+
+def test_missing_nvidia_smi_fails_before_any_install(monkeypatch):
+    monkeypatch.setattr(dependencies.sys, "platform", "linux")
+    monkeypatch.setattr(dependencies.Path, "is_dir", lambda path: True)
+    calls = []
+    def missing(args, **kwargs):
+        calls.append(args)
+        raise FileNotFoundError("nvidia-smi")
+    with pytest.raises(RuntimeError, match="Select a Colab GPU runtime"):
+        dependencies.ensure_colab_dependencies(ROOT, runner=missing)
+    assert len(calls) == 1 and calls[0][0] == "nvidia-smi"

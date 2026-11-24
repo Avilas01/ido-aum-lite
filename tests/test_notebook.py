@@ -160,3 +160,11 @@ def test_cpu_data_only_setup_does_not_probe_or_import_pytorch(tmp_path, monkeypa
     assert env["ENVIRONMENT"] is None and "torch" not in env and "torchvision" not in env
     probe.assert_not_called()
     assert pip.call_args.args[0][-1].endswith("requirements.txt")
+
+
+def test_cpu_data_only_guard_rejects_gpu_actions_without_importing_torch():
+    helper = next(s for s in sources()[1] if s.startswith("def run_module"))
+    env = {"SESSION_MODE": "data_only"}
+    exec(helper, env)
+    with pytest.raises(RuntimeError, match="Choose GPU runtime"):
+        env["require_gpu_session"]()
