@@ -2,7 +2,7 @@
 
 Develop with VS Code and Codex on Windows. Run all full training, benchmarking and final evaluation on a Google Colab Free GPU. A local GPU is not required.
 
-**Current stage: Step 1 implemented.** Portable configuration, the thin Colab notebook, reproducible stratified subsets, exact synthetic noise, stable-ID image adapters and separate analysis artifacts are implemented. The model, WE/AUM tracking, scoring, loss and training/evaluation runners remain later stages. No CIFAR-10 download or training has been performed locally. Actual torchvision transforms/DataLoader and real-data checks are provided for Colab.
+**Current stage: Step 2 implemented; hosted verification pending.** The CIFAR-adapted model, WE/AUM/common-CE tracker, history snapshots and isolated GPU smoke are implemented alongside Step 1 data preparation. NumPy tracker tests run locally without PyTorch. Model/collection tests and the GPU smoke must be run in Colab. Adaptive scoring/loss, the full experiment runner and final evaluation/plotting remain later stages; no model training or data download has run locally.
 
 ## Repository responsibilities
 
@@ -10,7 +10,10 @@ Develop with VS Code and Codex on Windows. Run all full training, benchmarking a
 - `configs/default.json`: portable scientific defaults (20k images, 6+6 epochs, seed 42).
 - `notebooks/colab_runner.ipynb`: Drive mount, pinned checkout, dependencies/GPU checks, configuration, benchmark/run/resume CLI orchestration.
 - `src/data.py`: NumPy-only reproducible label preparation, stable-ID dataset adapters and lazy Colab CIFAR/transform loading.
-- Other `src/` research modules (planned): model, statistics, scores, loss, checkpointing, training, evaluation and plotting.
+- `src/model.py`: non-pretrained CIFAR-stem ResNet-18 factory, imported lazily.
+- `src/statistics.py`: stable-ID WE/AUM/CE, complete-pass validation, branch copies and epoch snapshots.
+- `src/smoke.py`: isolated GPU-only model/tracking verification on 512 generated examples.
+- Other research modules (planned): scoring, loss, full checkpoint/resume, training, evaluation and plotting.
 - `requirements.txt`: lightweight Windows dependencies, excluding torch/torchvision/CUDA.
 - `requirements-colab.txt`: explicit training/evaluation dependencies including torch and torchvision.
 - `src/colab_dependencies.py`: Colab-only GPU dependency inspection/repair, safe to import locally without torch.
@@ -41,8 +44,8 @@ Future PyTorch-dependent dataset/model/statistics/loss tests run **in Colab**. M
 4. Run the dependency cell. It reads requirements-colab.txt, installs missing common packages without upgrading satisfied ones, and probes torch/torchvision in a fresh subprocess. Checks include installed versions, actual imports, torchvision's torch dependency metadata, CUDA, GPU name and a tiny compiled CUDA operation. A working GPU pair is kept even if it differs from the repair pair. No dataset is downloaded.
 5. Missing/incompatible/broken pairs are repaired **together** using torch==2.14.1 and torchvision==0.29.1 from the official CUDA 12.6 wheel index, as listed in [PyTorch's installation matrix](https://pytorch.org/get-started/previous-versions/). General requirements are intentionally not independently pinned to force replacement of a working Colab pair; metadata and runtime checks enforce compatibility. Actual versions are recorded in the persistent environment manifest. If no GPU is assigned, setup stops before installation; select a GPU rather than installing a CUDA toolkit.
 6. **If PyTorch installations change, setup raises RestartRequired. Select Runtime > Restart session (Restart runtime in some UIs), then rerun setup with the same RUN_ID.** Do not continue with cached native libraries. The next pass preserves the repaired pair. If post-repair CUDA/import checks fail, stop and review driver/package compatibility or select a fresh GPU runtime before proceeding.
-7. Run the optional hosted-test cell to install requirements-dev.txt and run python -m pytest -q in Colab. This includes PyTorch-dependent tests once later stages exist; Step 1 includes synthetic-image transform/DataLoader tests, but model tests and training remain later stages.
-8. Once research modules exist, use the smoke/benchmark/freeze cells, then train both noise conditions and evaluate/plot. Notebook commands use sys.executable -m, checked subprocess argument lists and explicit repository cwd. Missing research modules produce an explicit error; their implementation remains later work.
+7. Run the optional hosted-test cell to install requirements-dev.txt and run python -m pytest -q in Colab. This includes the implemented PyTorch-dependent checks; Steps 1–2 include synthetic-image transform/DataLoader/model/collection tests; the full training pipeline remains later work.
+8. Run the Step 2 smoke cell now when ready. The benchmark/freeze/full-training/evaluation cells require the later experiment runner and must wait for those stages. Notebook commands use sys.executable -m, checked subprocess argument lists and explicit repository cwd. Missing research modules produce an explicit error; their implementation remains later work.
 
 The non-torch installation cannot replace torch. A healthy GPU pair with a broken common import is reported separately rather than triggering PyTorch replacement. The tiny CUDA probe is dependency verification, not model training. The bootstrap is safe to import locally, but its installation function refuses Windows/non-Colab runtimes before any pip call.
 
@@ -58,7 +61,7 @@ report = ensure_colab_dependencies(repo)
 # If RestartRequired is raised, restart the runtime and rerun setup first.
 ```
 
-Experimental settings, the 15-hour budget and uniform fallback rules are unchanged. Default counts remain 48 executed training epochs, 72 training image-view passes, 36 statistics passes and 12 diagnostic-only inference passes. Step 1 data preparation is available separately below; model training remains unimplemented.
+Experimental settings, the 15-hour budget and uniform fallback rules are unchanged. Default counts remain 48 executed training epochs, 72 training image-view passes, 36 statistics passes and 12 diagnostic-only inference passes. Step 1 data preparation and Step 2 synthetic model/tracker verification are available below; full experiments remain unimplemented.
 
 ## Step 1: data and exact noisy labels
 
@@ -79,7 +82,7 @@ python -m src.data --prepare --config configs/default.json --noise 0.2 --data-ro
 
 Use a distinct metadata directory per noise/configuration; both conditions always select the same image IDs. Exact corruption draws use independent recorded SeedSequence([seed, noise_percent, 1]) streams derived from seed 42. All replacements uniformly exclude the original class. Subset positions are 0..N-1; TrainingMetadata.original_indices maps them to original CIFAR IDs.
 
-Training preparation loads only train=True, saves analysis separately and returns TrainingData containing images, provided noisy labels and IDs. It never retains the raw torchvision object or its original targets. make_training_datasets returns one-view standard, independent two-view adaptive and deterministic statistics datasets. Evaluation uses the separate load_cifar10_test entry point with all 10,000 official labels unchanged. A model is not implemented in this stage.
+Training preparation loads only train=True, saves analysis separately and returns TrainingData containing images, provided noisy labels and IDs. It never retains the raw torchvision object or its original targets. make_training_datasets returns one-view standard, independent two-view adaptive and deterministic statistics datasets. Evaluation uses the separate load_cifar10_test entry point with all 10,000 official labels unchanged. Model construction is a separate Step 2 interface.
 
 Persisted files under each metadata directory:
 
@@ -88,6 +91,30 @@ Persisted files under each metadata directory:
 - metadata.json: subset/noisy-label checksums, sample count, ratio, seed streams and fixed transform settings. Existing incompatible or incomplete artifacts are rejected, not silently overwritten.
 
 The weak view uses crop (32, padding 4), horizontal flip, tensor conversion and normalization. The strong view independently repeats crop/flip, adds ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05) before tensor conversion/normalization. Evaluation/statistics use only tensor conversion/normalization. Fixed channel mean=(0.4914, 0.4822, 0.4465) and std=(0.2470, 0.2435, 0.2616) are recorded with metadata. Standard/warm-up samples never compute an unused strong view. Training uses only noisy-label classes; clean originals and masks must never enter loss/score/selection functions.
+
+## Step 2: model, WE/AUM and diagnostic verification
+
+The model uses weights=None, a 3x3 stride-1/padding-1 stem, no initial maxpool and 10 outputs. No ImageNet weights are fetched. build_model(settings) imports torch/torchvision only when called in Colab.
+
+Run the hand-logit tracking tests locally without torch:
+
+```powershell
+./.venv/Scripts/python.exe -m pytest tests/test_statistics.py -q
+```
+
+In the latest Colab notebook, rerun Source and dependencies so the printed Step 2 module-availability flags are True. Run **Hosted tests (Steps 0–2)** with RUN_COLAB_TESTS=True, then **Step 2 verification: GPU model and tracking smoke** with RUN_SMOKE=True. This uses src.smoke, not the future src.train runner. The equivalent smoke command, from the Colab checkout, is:
+
+```bash
+python -m src.smoke --config configs/default.json --device cuda --output-root /content/drive/MyDrive/ido-aum-lite/experiments/run-001/smoke_step2
+```
+
+This is one plain-CE epoch on 512 generated tensors, not a CIFAR experiment or accuracy result. Default batch size 128 gives four training batches, followed by a complete deterministic inference pass. Reported training/diagnostic CE values and timings are real only after this command runs; synthetic timings cannot size the final experiment budget. Each invocation writes a new timestamped smoke_report.json and history/epoch_001.npz on Drive. No model/optimizer checkpoint or full-run resume behavior is claimed at this stage.
+
+SampleStatistics(train_size) counts wrong predictions once per completed epoch and accumulates assigned-label-minus-best-alternative raw logit margins. update_epoch(logits, noisy_labels, subset_positions, epoch=...) validates exactly-once full coverage before committing; repeated/skipped epochs fail. Its we and observation_counts are int32, margin_sum and AUM float32. AUM cannot be queried before an observation. IDs can arrive in any order; they are scattered into stable subset positions. copy()/state_dict()/from_state_dict() preserve history with independent branch arrays.
+
+make_statistics_loader supplies deterministic eval transforms, shuffle=False and drop_last=False. collect_epoch_statistics uses model.eval() and torch.no_grad(), restores all previous module modes, and computes sample-mean unweighted noisy-label CE. Passing no tracker performs only that common diagnostic, without WE/AUM updates. No clean labels/masks are inputs to these APIs.
+
+During the future warm-up runner, call save_snapshot with a distinct epoch filename after every completed epoch (six by default). The .npz stores WE, cumulative margin sums, per-example observation counts, tracked epochs and AUM. Snapshots are verified before publication, identical repeat saves are idempotent, conflicting history is rejected, and AUM is validated against saved sums/counts on reload. Dataset/configuration/code checksums and full model/optimizer/RNG resume state belong to the future outer checkpoint layer.
 
 ## Restart and resume
 

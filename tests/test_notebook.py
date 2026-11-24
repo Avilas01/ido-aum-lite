@@ -26,7 +26,7 @@ def test_notebook_schema_syntax_and_cleared_outputs():
     for cell in notebook.cells:
         if cell.cell_type == "code":
             assert cell.execution_count is None and cell.outputs == []
-    assert any("--smoke" in source for source in code)
+    assert any("src.smoke" in source and "--device" in source for source in code)
     assert any("--resume" in source for source in code)
 
 
