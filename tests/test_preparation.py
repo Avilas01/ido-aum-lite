@@ -1,4 +1,5 @@
 """Instrumented preparation with synthetic data and fake torchvision I/O only."""
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -18,7 +19,7 @@ def fake_vision(monkeypatch):
     class FakeCIFAR:
         url = "https://example.invalid/cifar.tar.gz"
         filename = "cifar-10-python.tar.gz"
-        tgz_md5 = "fixture-md5"
+        tgz_md5 = hashlib.md5(b"fake archive, not CIFAR").hexdigest()
         def __init__(self, root, train, download):
             self.root = root
             self.train = train
@@ -158,3 +159,18 @@ def test_two_noise_cli_loads_once_and_writes_the_existing_condition_layout(tmp_p
         assert data.load_analysis_metadata(root).is_corrupted.sum() == round(20 * ratio)
     output = capsys.readouterr().out
     assert '"preparations"' in output and '"stage_timings"' in output and "All conditions ready" in output
+
+
+def test_drive_archive_restores_new_runtime_before_extraction(tmp_path, fake_vision):
+    settings = {**load_config(), "train_size": 20}
+    persistent = tmp_path / "Drive"
+    first = data.prepare_cifar10_conditions(settings, [.2, .4], tmp_path / "VM1", tmp_path / "metadata",
+                                            archive_root=persistent)
+    assert (persistent / "cifar-10-python.tar.gz").is_file()
+    fake_vision["ready"] = False  # A new Colab VM has no extracted batches.
+    second = data.prepare_cifar10_conditions(settings, [.2, .4], tmp_path / "VM2", tmp_path / "metadata",
+                                             archive_root=persistent)
+    assert fake_vision["downloads"] == 1 and fake_vision["extractions"] == 2
+    assert fake_vision["loads"] == 2
+    for ratio in (.2, .4):
+        assert first[ratio].metadata.summary() == second[ratio].metadata.summary()

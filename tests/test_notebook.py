@@ -57,8 +57,7 @@ def test_manifest_freeze_is_valid_and_preserves_existing_configuration(tmp_path)
            "BENCHMARK_ROOT": bench, "EXPERIMENT_ROOT": tmp_path, "RUN_ID": "test", "GIT_SHA": "test-sha",
            "ENVIRONMENT": {"gpu": "mock"}, "load_config": load_config, "hashlib": hashlib, "json": json}
     freeze = next(source for source in sources()[1] if "FREEZE_APPROVED = False" in source)
-    with pytest.raises(RuntimeError, match="Review the benchmark"):
-        exec(freeze, env)
+    exec(freeze, env)
     assert not env["FROZEN_CONFIG"].exists()
     freeze = freeze.replace("FREEZE_APPROVED = False", "FREEZE_APPROVED = True")
     exec(freeze, env)
@@ -126,3 +125,38 @@ def test_public_checkout_error_shows_git_reason(tmp_path):
     with pytest.raises(RuntimeError, match="Repository not found") as error:
         exec(source, env)
     assert "anonymous public cloning" in str(error.value)
+
+
+def test_every_code_block_is_numbered_and_actions_default_to_disabled():
+    notebook, code = sources()
+    numbers = []
+    for index, cell in enumerate(notebook.cells):
+        if cell.cell_type == "code":
+            heading = notebook.cells[index - 1]
+            assert heading.cell_type == "markdown" and heading.source.startswith("### Block ")
+            numbers.append(int(heading.source.split()[2]))
+    assert numbers == list(range(1, 14))
+    for flag in ["RUN_CACHE_DATA", "RUN_COLAB_TESTS", "RUN_DATA_CHECK", "RUN_SMOKE",
+                 "RUN_BENCHMARK", "FREEZE_APPROVED", "RUN_TRAINING", "RUN_EVALUATION"]:
+        source = next(s for s in code if flag + " = False" in s)
+        if flag == "FREEZE_APPROVED":
+            exec(source, {})  # Disabled freeze must not require configured paths.
+        else:
+            exec(source, {})  # Disabled actions must perform no setup/work.
+
+
+def test_cpu_data_only_setup_does_not_probe_or_import_pytorch(tmp_path, monkeypatch):
+    import src.colab_dependencies as dependencies
+    from unittest.mock import Mock
+    probe = Mock(side_effect=AssertionError("CPU cache mode must not check GPU dependencies"))
+    monkeypatch.setattr(dependencies, "ensure_colab_dependencies", probe)
+    pip = Mock()
+    setup = next(s for s in sources()[1] if "dependency_status = ensure_colab_dependencies" in s)
+    env = {"REPO_DIR": NOTEBOOK_PATH.parents[1], "sys": sys, "SESSION_MODE": "data_only",
+           "subprocess": SimpleNamespace(run=pip), "saved_manifest": None, "json": json,
+           "DATA_ROOT": tmp_path / "data", "ARCHIVE_ROOT": tmp_path / "Drive/cache",
+           "RUNS_ROOT": tmp_path / "runs", "RESULTS_ROOT": tmp_path / "results"}
+    exec(setup, env)
+    assert env["ENVIRONMENT"] is None and "torch" not in env and "torchvision" not in env
+    probe.assert_not_called()
+    assert pip.call_args.args[0][-1].endswith("requirements.txt")

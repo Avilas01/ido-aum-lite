@@ -328,7 +328,7 @@ def make_training_datasets(data, transforms=None):
             "statistics": NoisyLabelDataset(data, transforms["eval"])}
 
 
-def _cifar10(root, *, train, download, progress=None):
+def _cifar10(root, *, train, download, progress=None, archive_root=None):
     """Observable torchvision loading; no duplicate checksum pass per instance."""
     manager = nullcontext(progress) if progress is not None else PreparationProgress()
     with manager as reporter:
@@ -339,6 +339,7 @@ def _cifar10(root, *, train, download, progress=None):
         with reporter.stage("Import torchvision CIFAR loader"):
             from torchvision.datasets import CIFAR10
             from torchvision.datasets.utils import download_url, extract_archive
+            from src.archive_cache import ensure_archive
 
         class ObservableCIFAR10(CIFAR10):
             def _check_integrity(self):
@@ -352,11 +353,17 @@ def _cifar10(root, *, train, download, progress=None):
             def download(self):
                 if self._check_integrity():
                     reporter.log("Extracted CIFAR cache is valid; skipping download and extraction.")
+                    if archive_root is not None:
+                        archive = Path(self.root) / self.filename
+                        if archive.is_file():
+                            ensure_archive(self.root, archive_root, download=False, progress=reporter,
+                                           url=self.url, filename=self.filename, checksum=self.tgz_md5)
+                        else:
+                            reporter.log("No local archive to back up. Run Block 6 once to create a persistent archive.")
                     return
-                archive = Path(self.root) / self.filename
-                reporter.log(f"Archive: {archive}; existing={archive.exists()}. Valid archives are reused; incomplete archives must be downloaded again.")
-                with reporter.stage(f"Download/verify CIFAR archive from {self.url}"):
-                    download_url(self.url, self.root, filename=self.filename, md5=self.tgz_md5)
+                archive = ensure_archive(self.root, archive_root, progress=reporter,
+                                         url=self.url, filename=self.filename, checksum=self.tgz_md5,
+                                         downloader=download_url)
                 with reporter.stage(f"Extract CIFAR archive into {self.root}"):
                     extract_archive(str(archive), self.root)
 
@@ -368,13 +375,15 @@ def _cifar10(root, *, train, download, progress=None):
         return source
 
 
-def _prepare_conditions(settings, ratios, data_root, metadata_paths, download, progress):
+def _prepare_conditions(settings, ratios, data_root, metadata_paths, download, progress, archive_root=None):
     ratios = [_noise_ratio(ratio) for ratio in ratios]
     if not ratios or len(set(ratios)) != len(ratios) or any(ratio not in settings["noise_ratios"] for ratio in ratios):
         raise ValueError("Use distinct configured noise ratios")
     kwargs = {"train": True, "download": download}
     if progress is not None:
         kwargs["progress"] = progress
+    if archive_root is not None:
+        kwargs["archive_root"] = archive_root
     source = _cifar10(data_root, **kwargs)
     if len(source.targets) != 50000:
         raise ValueError("Expected the official 50,000-image CIFAR-10 training split")
@@ -395,24 +404,26 @@ def _prepare_conditions(settings, ratios, data_root, metadata_paths, download, p
     return result
 
 
-def prepare_cifar10_training(settings, ratio, data_root, metadata_root, *, download=True, progress=None):
+def prepare_cifar10_training(settings, ratio, data_root, metadata_root, *, download=True, progress=None, archive_root=None):
     """Single-condition facade retained for callers; analysis is saved separately."""
     ratio = _noise_ratio(ratio)
-    return _prepare_conditions(settings, [ratio], data_root, {ratio: Path(metadata_root)}, download, progress)[ratio]
+    return _prepare_conditions(settings, [ratio], data_root, {ratio: Path(metadata_root)}, download, progress, archive_root)[ratio]
 
 
-def prepare_cifar10_conditions(settings, ratios, data_root, metadata_root, *, download=True, progress=None):
+def prepare_cifar10_conditions(settings, ratios, data_root, metadata_root, *, download=True, progress=None, archive_root=None):
     """One source load and image selection; separate reproducible noise artifacts."""
     ratios = [_noise_ratio(ratio) for ratio in ratios]
     paths = {ratio: Path(metadata_root) / f"noise_{round(100 * ratio)}" for ratio in ratios}
-    return _prepare_conditions(settings, ratios, data_root, paths, download, progress)
+    return _prepare_conditions(settings, ratios, data_root, paths, download, progress, archive_root)
 
 
-def load_cifar10_test(data_root, *, download=True, transform=None, progress=None):
+def load_cifar10_test(data_root, *, download=True, transform=None, progress=None, archive_root=None):
     """Separate entry point for evaluation; never corrupt or subsample test labels."""
     kwargs = {"train": False, "download": download}
     if progress is not None:
         kwargs["progress"] = progress
+    if archive_root is not None:
+        kwargs["archive_root"] = archive_root
     source = _cifar10(data_root, **kwargs)
     if len(source.targets) != 10000:
         raise ValueError("Expected the untouched official 10,000-image test split")
@@ -450,6 +461,7 @@ def main():
     parser.add_argument("--no-download", action="store_true", help="Use an existing verified CIFAR cache only")
     parser.add_argument("--data-root", type=Path)
     parser.add_argument("--metadata-root", type=Path)
+    parser.add_argument("--archive-root", type=Path, help="Persistent verified archive cache (e.g. Drive); extracted images stay local")
     args = parser.parse_args()
     settings = load_config(args.config)
     if args.synthetic_check:
@@ -462,10 +474,10 @@ def main():
             if len(args.noise) == 1:
                 ratio = args.noise[0]
                 prepared = {ratio: prepare_cifar10_training(settings, ratio, args.data_root, args.metadata_root,
-                                                          download=not args.no_download, progress=progress)}
+                                                          download=not args.no_download, progress=progress, archive_root=args.archive_root)}
             else:
                 prepared = prepare_cifar10_conditions(settings, args.noise, args.data_root, args.metadata_root,
-                                                      download=not args.no_download, progress=progress)
+                                                      download=not args.no_download, progress=progress, archive_root=args.archive_root)
             with progress.stage("Create transforms and check one weak/strong image per condition"):
                 transforms = make_transforms()
                 reports = []

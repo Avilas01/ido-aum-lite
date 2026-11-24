@@ -14,3 +14,8 @@ __pycache__/
 htmlcov/
 .env.*
 !.env.example
+
+# Download/cache artifacts must not enter Git.
+cache/
+*.part
+cifar-10-python.tar.gz
