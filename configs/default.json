@@ -1,0 +1,26 @@
+{
+  "seed": 42,
+  "dataset": "CIFAR10",
+  "train_size": 20000,
+  "noise_ratios": [
+    0.2,
+    0.4
+  ],
+  "model": "resnet18",
+  "pretrained": false,
+  "batch_size": 128,
+  "warmup_epochs": 6,
+  "continuation_epochs": 6,
+  "optimizer": "AdamW",
+  "learning_rate": 0.0003,
+  "weight_decay": 0.0001,
+  "pseudo_threshold": 0.7,
+  "clean_weight_floor": 0.1,
+  "pseudo_coefficient": 0.5,
+  "consistency_coefficient": 0.5,
+  "near_zero_epsilon": 1e-08,
+  "num_workers": 2,
+  "amp": true,
+  "test_size": 10000,
+  "cifar_stem": true
+}

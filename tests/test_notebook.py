@@ -1,0 +1,76 @@
+"""Validate the notebook without Google Drive, CUDA or research modules."""
+import ast
+import hashlib
+import json
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
+import nbformat
+import pytest
+from config import load_config
+
+NOTEBOOK_PATH = Path(__file__).resolve().parents[1] / "notebooks" / "run_colab.ipynb"
+
+
+def sources():
+    notebook = nbformat.read(NOTEBOOK_PATH, as_version=4)
+    return notebook, [cell.source for cell in notebook.cells if cell.cell_type == "code"]
+
+
+def test_notebook_schema_syntax_and_cleared_outputs():
+    notebook, code = sources()
+    nbformat.validate(notebook)
+    for source in code:
+        ast.parse(source)
+    for cell in notebook.cells:
+        if cell.cell_type == "code":
+            assert cell.execution_count is None and cell.outputs == []
+    assert any("--smoke" in source for source in code)
+    assert any("--resume" in source for source in code)
+
+
+def test_checked_module_calls_preserve_paths_with_spaces_and_reject_missing_modules(tmp_path):
+    repo = tmp_path / "source checkout"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "train.py").touch()
+    calls = []
+    env = {"REPO_DIR": repo, "sys": sys, "subprocess": SimpleNamespace(run=lambda args, **kwargs: calls.append((args, kwargs)))}
+    helper = next(source for source in sources()[1] if source.startswith("def run_module"))
+    exec(helper, env)
+    target = tmp_path / "Drive outputs with spaces"
+    env["run_module"]("src.train", "--output-root", target, "--resume")
+    args, kwargs = calls[0]
+    assert args == [sys.executable, "-m", "src.train", "--output-root", str(target), "--resume"]
+    assert kwargs == {"cwd": repo, "check": True}
+    with pytest.raises(RuntimeError, match="not implemented yet"):
+        env["run_module"]("src.evaluate")
+
+
+def test_manifest_freeze_is_valid_and_preserves_existing_configuration(tmp_path):
+    bench = tmp_path / "benchmark"
+    bench.mkdir()
+    (bench / "experiment_config.json").write_text(json.dumps(load_config()))
+    env = {"FROZEN_CONFIG": tmp_path / "experiment_config.json", "MANIFEST_PATH": tmp_path / "manifest.json",
+           "BENCHMARK_ROOT": bench, "EXPERIMENT_ROOT": tmp_path, "RUN_ID": "test", "GIT_SHA": "test-sha",
+           "ENVIRONMENT": {"gpu": "mock"}, "load_config": load_config, "hashlib": hashlib, "json": json}
+    freeze = next(source for source in sources()[1] if "FREEZE_APPROVED = False" in source)
+    with pytest.raises(RuntimeError, match="Review the benchmark"):
+        exec(freeze, env)
+    assert not env["FROZEN_CONFIG"].exists()
+    freeze = freeze.replace("FREEZE_APPROVED = False", "FREEZE_APPROVED = True")
+    exec(freeze, env)
+    before = env["FROZEN_CONFIG"].read_bytes()
+    manifest = json.loads(env["MANIFEST_PATH"].read_text())
+    assert manifest["config_sha256"] == hashlib.sha256(before).hexdigest()
+    (bench / "experiment_config.json").write_text("invalid replacement")
+    exec(freeze, env)
+    assert env["FROZEN_CONFIG"].read_bytes() == before
+
+
+def test_setup_stops_before_full_cpu_run(monkeypatch):
+    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: False)))
+    monkeypatch.setitem(sys.modules, "torchvision", SimpleNamespace())
+    gpu_check = next(source for source in sources()[1] if source.startswith("import torch"))
+    with pytest.raises(RuntimeError, match="GPU unavailable"):
+        exec(gpu_check, {})

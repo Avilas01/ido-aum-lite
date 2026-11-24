@@ -1,0 +1,16 @@
+data/
+runs/
+benchmark/
+.venv/
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+*.pt
+*.pth
+*.tmp
+.env
+*.py[cod]
+.coverage
+htmlcov/
+.env.*
+!.env.example
