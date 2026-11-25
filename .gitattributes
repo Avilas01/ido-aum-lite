@@ -6,3 +6,8 @@
 
 # Preserve measured/exported artifacts exactly: publication manifests hash their bytes.
 results/** -text whitespace=cr-at-eol
+
+# Preserve the editable report bytes referenced by report_sources.json.
+report/*.docx -text
+report/report.md -text whitespace=cr-at-eol
+report/report_sources.json -text whitespace=cr-at-eol

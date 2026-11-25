@@ -1,0 +1,27 @@
+{
+  "configuration_sha256": "a949134949d25219405ea573349acee3f46191429c5542b7b46a4a33d517acc0",
+  "experiment_code": {
+    "git_sha": "695f50fef1915f0ab2d370ba6c8cda1282e9dae2",
+    "source_sha256": "d897c9d9cad77716eb4cddeba2496f15381c32f7deb49e84697e589149d0107c"
+  },
+  "metrics_json_sha256": "d521b7d3f2f96530936ccb7ec23b130d756fd1a36cbeb3e69bccb50f80eb669c",
+  "outputs": {
+    "report.md": "f8147d3fa64ce64e1712c140a3e4fe433e65fef6ef367755749e41812410eb4a",
+    "IDO_AUM_Lite_Report.docx": "ee26132c03312799cf09416904c2dad971a0f4220d521fd20e4f96a7c808eae6"
+  },
+  "cover_reference": {
+    "filename": "Group_2_Research_Ideas.pdf",
+    "sha256": "109d0f05c5bd6fa290330b1c1ccd15bc3ea026a2a8072de5b5d82f28b81b7352"
+  },
+  "cover_names": [
+    "Aditya Vilas",
+    "Sameet Vilas",
+    "Jay Manohar Kawade",
+    "Raghav Goenka",
+    "Pragati Garg",
+    "Saksham Mishra"
+  ],
+  "contribution_assignments": null,
+  "editable_math": "native OMML",
+  "figures": 4
+}
