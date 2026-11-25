@@ -1,0 +1,53 @@
+{
+  "accuracy": {
+    "accuracy_pct": 68.39,
+    "correct": 6839,
+    "environment": {
+      "cuda": "13.0",
+      "cudnn": 92800,
+      "device_type": "cuda",
+      "gpu": "Tesla T4",
+      "numpy": "2.4.6",
+      "python": "3.13.16",
+      "torch": "2.14.1+cu130",
+      "torchvision": "0.29.1+cu130"
+    },
+    "evaluation_seconds": 6.807766063999907,
+    "test_data_sha256": "746260e0c819c2cf4027cfcd58a2a5af68dca21a26043cf6b7061a197cc56819",
+    "total": 10000
+  },
+  "accuracy_cache": "accuracy_cache/cb83ad9d9f2fee3b438eac0a96504c25f53abad7f94b8089e2bc2119a8ce0c58.json",
+  "amp_skipped_steps": 1,
+  "delta_vs_hybrid_pp": -0.09,
+  "delta_vs_we_only_pp": -0.22,
+  "final_checkpoint_sha256": "40155a01943313d54368d8461bb177c58b422d85b8cb8fb20f76121df3b8eddc",
+  "iteration_1_test_accuracy_pct": {
+    "hybrid": 68.48,
+    "standard": 63.8,
+    "we_only": 68.61
+  },
+  "method": "aum_only",
+  "noise_ratio": 0.4,
+  "original_runtime": {
+    "cuda": "13.0",
+    "cudnn": 92800,
+    "device_type": "cuda",
+    "gpu": "Tesla T4",
+    "numpy": "2.4.6",
+    "python": "3.13.16",
+    "torch": "2.14.1+cu130",
+    "torchvision": "0.29.1+cu130"
+  },
+  "runtime": {
+    "cuda": "13.0",
+    "cudnn": 92800,
+    "device_type": "cuda",
+    "gpu": "Tesla T4",
+    "numpy": "2.4.6",
+    "python": "3.13.16",
+    "torch": "2.14.1+cu130",
+    "torchvision": "0.29.1+cu130"
+  },
+  "seed": 42,
+  "warmup_checkpoint_sha256": "89c78c575078b985e8ada977ea913300bfd98dd0ac57fdc196e6d3f011e438b9"
+}
