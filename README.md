@@ -2,7 +2,7 @@
 
 Develop with VS Code and Codex on Windows. Run all full training, benchmarking and final evaluation on a Google Colab Free GPU. A local GPU is not required.
 
-**Current stage: Step 4 staged runner/checkpoint resume implemented; Steps 3-4 hosted verification pending.** Step 2 hosted checks are complete, as confirmed by the user. Step 4 adds shared warm-up, three fair continuation branches, complete epoch-boundary recovery, a 512-image synthetic smoke and isolated runtime benchmarking. Final evaluation/plotting remain later stages. No model training or data download has run locally; Colab smoke, resume checks and benchmarking have not been executed for Step 4.
+**Current stage: Step 5 evaluation/aggregation code implemented; real benchmark, full training and final evaluation pending in Colab.** At commit 9892aee, the user confirmed a successful hosted-test command, integrated Step 4 GPU smoke and completed-stage resume. Its pytest count/skip summary was not visible. Step 5 adds cached final test accuracy, historical warm-up detection ROC-AUC, saved detector arrays and one deduplicated results table. Step 5 hosted checks remain pending. No model training or data download has run locally. Plotting and the final report remain later stages.
 
 ## Repository responsibilities
 
@@ -20,7 +20,8 @@ Develop with VS Code and Codex on Windows. Run all full training, benchmarking a
 - `src/losses.py`: shared IDO-inspired adaptive objective and sample-weighted component diagnostics; torch imported only when computing loss.
 - `src/checkpoints.py`: verified checkpoint journal, full-state hashing, code/configuration/data identity, RNG capture/restore.
 - `src/train.py`: shared warm-up, three continuation branches, epoch-boundary resume, isolated smoke and representative-epoch benchmark.
-- Other research modules (planned): final evaluation and plotting.
+- `src/evaluate.py`: sole owner of cached final test accuracy, historical detector ROC-AUC, plot-input arrays and JSON/CSV aggregation.
+- Other research modules (planned): plotting and the final report.
 - `requirements.txt`: lightweight Windows dependencies, excluding torch/torchvision/CUDA.
 - `requirements-colab.txt`: explicit training/evaluation dependencies including torch and torchvision.
 - `src/colab_dependencies.py`: Colab-only GPU dependency inspection/repair, safe to import locally without torch.
@@ -53,7 +54,7 @@ Open the [latest notebook in Colab](https://colab.research.google.com/github/Avi
 | Test Step 2 model/tracker with generated inputs | GPU, `SESSION_MODE='verify'` | 1-5, 7, 9 | `RUN_COLAB_TESTS` in 7, `RUN_SMOKE` in 9 |
 | Verify Step 1 using real CIFAR | GPU, `SESSION_MODE='verify'`; cache on CPU first | 1-5, 7 if not already passed for this source/environment, 8 | `RUN_COLAB_TESTS` if needed, `RUN_DATA_CHECK` in 8 |
 | Full training (hosted checks pending) | GPU, `SESSION_MODE='train'` | 1-5, 6 as needed, 10 then 11 once, 12 | Later: `RUN_BENCHMARK`, `FREEZE_APPROVED`, `RUN_TRAINING` |
-| Resume (hosted checks pending) / future evaluation | GPU, `SESSION_MODE='train'`, same RUN_ID | 1-5, 6 if local archive missing, 12 / 13 | Later: `RUN_TRAINING` / `RUN_EVALUATION`; skip 10-11 for a frozen run |
+| Resume / final evaluation (real runs pending) | GPU, `SESSION_MODE='train'`, same RUN_ID | 1-5, 6 if local archive missing, 12 / 13 | Later: `RUN_TRAINING` / `RUN_EVALUATION`; skip 10-11 for a frozen run |
 
 All action flags default to False. Enable only the actions you need. `ACKNOWLEDGE_GPU_CHANGE` in Block 3 is only for reviewing and recording a different GPU on a frozen experiment, never bypassing a dependency mismatch. Leave all future-stage flags False until those modules exist. Block 9 is an engineering smoke, not actual CIFAR model training. Blocks 10-13 safely skip by default.
 
@@ -84,7 +85,7 @@ Add `--no-download` to that cache-only command to require an already valid local
 5. Missing/incompatible/broken pairs are repaired **together** using torch==2.14.1 and torchvision==0.29.1 from the official CUDA 12.6 wheel index, as listed in [PyTorch's installation matrix](https://pytorch.org/get-started/previous-versions/). General requirements are intentionally not independently pinned to force replacement of a working Colab pair; metadata and runtime checks enforce compatibility. Actual versions are recorded in the persistent environment manifest. If no GPU is assigned, setup stops before installation; select a GPU rather than installing a CUDA toolkit.
 6. **If PyTorch installations change, setup raises RestartRequired. Select Runtime > Restart session (Restart runtime in some UIs), then rerun setup with the same RUN_ID.** Do not continue with cached native libraries. The next pass preserves the repaired pair. If post-repair CUDA/import checks fail, stop and review driver/package compatibility or select a fresh GPU runtime before proceeding.
 7. Run the optional hosted-test cell to install requirements-dev.txt and run python -m pytest -q in Colab. This includes the implemented PyTorch-dependent checks; Steps 1–2 include synthetic-image transform/DataLoader/model/collection tests; Steps 3-4 add loss/gradient and tiny staged-resume checks.
-8. Run the Step 2 smoke cell now when ready. Keep benchmark/freeze/full-training disabled until Step 4 hosted tests and integrated smoke pass. Evaluation remains a later stage. Notebook commands use sys.executable -m, checked subprocess argument lists and explicit repository cwd. Missing research modules produce an explicit error; their implementation remains later work.
+8. Run the Step 2 smoke cell now when ready. Keep benchmark/freeze/full-training disabled until Step 4 hosted tests and integrated smoke pass. Step 5 evaluation requires completed final checkpoints; plotting remains a later stage. Notebook commands use sys.executable -m, checked subprocess argument lists and explicit repository cwd. Missing research modules produce an explicit error; their implementation remains later work.
 
 The non-torch installation cannot replace torch. A healthy GPU pair with a broken common import is reported separately rather than triggering PyTorch replacement. The tiny CUDA probe is dependency verification, not model training. The bootstrap is safe to import locally, but its installation function refuses Windows/non-Colab runtimes before any pip call.
 
@@ -100,7 +101,7 @@ report = ensure_colab_dependencies(repo)
 # If RestartRequired is raised, restart the runtime and rerun setup first.
 ```
 
-Experimental settings, the 15-hour budget and uniform fallback rules are unchanged. Default counts remain 48 executed training epochs, 72 training image-view passes, 36 statistics passes and 12 diagnostic-only inference passes. Step 1 data preparation and Step 2 synthetic model/tracker verification are available below; the Step 4 full runner is implemented but hosted validation and actual experiments remain pending.
+Experimental settings, the 15-hour budget and uniform fallback rules are unchanged. Default counts remain 48 executed training epochs, 72 training image-view passes, 36 statistics passes and 12 diagnostic-only inference passes. Step 1 data preparation and Step 2 synthetic model/tracker verification are available below; the runner and evaluator are implemented, while actual benchmark/training/evaluation remain pending.
 
 ## Step 1: data and exact noisy labels
 
@@ -208,7 +209,7 @@ The Step 4 runner freezes scores from all prior completed epochs, trains, collec
 
 ## Step 4: staged runner, checkpoints and runtime benchmark
 
-Development is complete; hosted validation is pending GPU availability. No GPU allocation is needed to continue coding. Keep notebook benchmark/freeze/training flags False until hosted tests and the integrated smoke pass. Evaluation in Block 13 is still unimplemented.
+Step 4 hosted test command, integrated GPU smoke and completed-stage resume passed at 9892aee, as confirmed by the user. Step 5 adds new hosted checks; run those against the final reviewed code before real experiments. No GPU allocation is needed for lightweight code development.
 
 Local lightweight verification:
 
@@ -249,7 +250,44 @@ Each stage journal (`latest.json` plus `latest.previous.json`) points to checksu
 
 Temporary/orphan payloads do not commit an epoch. If the latest payload/pointer is corrupt, recovery uses the previous verified generation. A durably completed epoch is not repeated; an unfinished epoch can repeat. `epochs.json` and `warmup/history/epoch_*.npz` are derived from the checkpoint and regenerated after interrupted publication. Per-epoch timing files record training/inference and checkpoint publication separately; a missing timing sidecar after a crash does not invalidate a verified training epoch. No historical time is invented during recovery. `completion.json` is derived; resume verifies stage journals before skipping completed branches.
 
-Epoch payloads are retained, so budget Drive storage for model and optimizer states across both conditions. Use one writer per experiment. Recover with the same RUN_ID, pinned code, frozen configuration and persistent paths; runtime source/extraction can be rebuilt from GitHub and the verified shared archive. Do not delete persistent checkpoints, alter labels or repeat fallback selection during recovery. Final evaluation, result aggregation and plotting remain separate later modules.
+Epoch payloads are retained, so budget Drive storage for model and optimizer states across both conditions. Use one writer per experiment. Recover with the same RUN_ID, pinned code, frozen configuration and persistent paths; runtime source/extraction can be rebuilt from GitHub and the verified shared archive. Do not delete persistent checkpoints, alter labels or repeat fallback selection during recovery. Final evaluation and result aggregation are owned by src.evaluate; plotting remains Step 6.
+
+## Step 5: final evaluation and result aggregation
+
+Step 5 code is implemented; no full experiments or final measurements have been performed. Local tests use controlled synthetic fixtures, never experimental result claims. The evaluator imports torch only for checkpoint/model operations; pure detector, cache and aggregation tests remain lightweight.
+
+```powershell
+./.venv/Scripts/python.exe -m pytest tests/test_evaluate.py -q
+```
+
+Before real runs, commit/push the reviewed Step 5 code, refresh Colab source/setup, and run hosted tests including `tests/test_evaluate_torch.py`. Benchmark/freeze must use that same reviewed code identity, so the pinned experiment includes the evaluator. The Step 4 smoke outputs remain engineering evidence and are never accepted as scientific runs. Repeating their checks is only needed when relevant code/environment changes warrant it. This update does not alter training configuration, noise, seeds, transforms, loss or the deferred Block 7 output behavior.
+
+For the real experiment, use Block 10 to benchmark, review remaining time and any uniform Section I fallback, then Block 11 to freeze once. Block 12 executes/resumes both noise conditions. Do not change configuration, code or label metadata after freezing. Allow for evaluation and setup/Drive/debugging overhead in the 4.5-hour allocation; the 512-image smoke timing is not a runtime estimate for real training.
+
+Block 13 now has separate `RUN_EVALUATION=False` and `RUN_PLOTTING=False` controls. Once final checkpoints exist, enable evaluation only. Plotting stays False until Step 6 exists. The equivalent CLI from the frozen checkout is:
+
+```bash
+python -m src.evaluate --device cuda --data-root /content/data --archive-root /content/drive/MyDrive/ido-aum-lite/cache/cifar10 --runs "$EXPERIMENT_ROOT/runs" --output-root "$EXPERIMENT_ROOT/results"
+```
+
+Full inference refuses CPU/Windows execution and checks the frozen config/manifest, completed benchmark, source identity and runtime before loading official test data. GPU changes use the same explicit acknowledgement as training. Evaluation reads only matching scientific `noise_20` / `noise_40` runs; synthetic smoke and benchmark identities are rejected. All three methods must share the same full warm-up state and historical statistics. Both conditions must share configuration, runtime versions and selected training image IDs. Model hashes include all BatchNorm buffers.
+
+Each completed final model is tested on the entire untouched official 10,000-image test split, with deterministic transforms and no AMP. No checkpoint/epoch/hyperparameter selection uses these accuracies. A lazy test-data loader is shared across missing evaluations. Each completed measurement is atomically cached under `results/accuracy_cache/` using full checkpoint hash, model hash, run identity/configuration and evaluation protocol. Cached records verify count/accuracy consistency, identity and payload checksum. Unchanged repeat aggregation does not load the test dataset or rerun model inference. An interrupted measurement without a published cache may repeat; a corrupt published cache is reported for inspection instead of silently accepted or remeasured.
+
+Detection uses the saved shared warm-up history embedded in the verified checkpoint, including cumulative WE, raw-logit margin sums and observation counts. The prespecified primary epoch is `warmup_epochs`; earlier epochs are retrospective diagnostics only and are never selected for quality. Primary scores are raw WE and negative AUM, plus an optional rank-fused hybrid. Missing history, unobserved samples, inconsistent masks or absent clean/corrupted classes fail explicitly rather than substituting ROC-AUC 0.5.
+
+Outputs under the persistent results root:
+
+- `evaluation_manifest.json`: scientific configuration, code identity and test protocol; incompatible existing results are preserved and rejected.
+- `accuracy_cache/<identity>.json`: one verified completed test measurement per final checkpoint identity, including correct/total, accuracy percent, data fingerprint, runtime and evaluation duration.
+- `detectors/noise_20/` and `detectors/noise_40/`: source-identified NPZ arrays and JSON summaries containing every warm-up epoch's WE/margin sums/counts/AUM, original/stable IDs, provided/analysis labels, corruption mask, primary detector scores and per-epoch ROC-AUC. These are evaluation-only plot inputs.
+- `metrics.json`: completion/pending status, full method/configuration provenance, checkpoint/cache references, warm-up and continuation logs, component summaries, measured available timings and detector summaries.
+- `metrics_manifest.json`: final publication marker with CSV/JSON checksums and completion count. Verify it before consuming results; a missing/mismatched marker indicates an interrupted aggregation. Rerun evaluation to rebuild from caches.
+- `metrics.csv`: one row per configuration/noise/method, rebuilt from currently verified completed checkpoints and their caches. Repeating or incrementally completing conditions replaces rows without duplicates. All six rows are required for `complete=true`; a missing/incomplete/corrupt-final-fallback branch is reported pending and contributes no stale final row.
+
+CSV accuracy is a percentage; ROC-AUC values lie in [0,1]. Each method's reported training duration includes the shared warm-up, so summing rows would count shared work three times. Missing checkpoint-publication timing sidecars remain null/explicitly incomplete; no duration is invented. JSON retains sample-weighted adaptive component/confidence/zero/near-zero diagnostics and common deterministic CE separately from the weighted training objective. CSV/JSON are derived from immutable checkpoint/cache records and can be rebuilt after interrupted aggregation without repeating completed test measurements. Use one evaluator writer per results directory.
+
+After both conditions finish, confirm `metrics.json` says `complete: true`, `row_count: 6`, with two detector summaries and primary WE/-AUM AUC for both noise levels. These are exploratory single-seed results from an IDO-inspired simplification; negative outcomes are valid. Actual real-data numbers must come from those persisted outputs. Save source/frozen metadata and small reviewed results to GitHub later; keep datasets and model/optimizer checkpoints on Drive. Step 6 figures and Step 7 report remain unimplemented.
 
 ## Restart and resume
 
@@ -258,7 +296,7 @@ Epoch payloads are retained, so budget Drive storage for model and optimizer sta
 3. Rerun setup. It reads the recorded Git SHA, reclones/checks out that version, checks/installs dependencies as needed and verifies the saved configuration/environment. Restore the recorded dependency/runtime versions if checks report a mismatch. If only the assigned GPU changed, the notebook requires explicit `ACKNOWLEDGE_GPU_CHANGE=True` and records the new hardware before continuing; bitwise equivalence is not guaranteed. Restore the disposable `/content/data` archive using Block 6 (or let Block 8 restore it before preparation). The verified Drive archive survives runtime replacement.
 4. Skip benchmark/freeze cells for an existing frozen experiment. Never overwrite its configuration or change the selected image IDs/noisy labels during recovery.
 5. Rerun training cells with `--resume` (already included). The runner starts missing stages, restores interrupted branches from their last complete persistent checkpoint, and skips completed branches. Incomplete epoch work can repeat; completed statistics/log rows must not repeat. Resume restores optimizer/scaler/RNG/loader/statistics state; starting a new branch resets optimizer/RNGs after loading the shared warm-up state.
-6. Rerun evaluation/plotting cells. The future evaluation module caches final checkpoint identities and avoids duplicate evaluation/rows. Confirm results are present on Drive.
+6. Rerun evaluation/plotting cells. The evaluation module caches final checkpoint identities and avoids duplicate evaluation/rows. Confirm results are present on Drive.
 
 Colab runtime-local files are disposable. Persistent writes must retain a previous verified checkpoint and ignore partially published files on restart. A final copy at session end is insufficient. GPU/environment changes may prevent bitwise reproducibility; record them rather than silently claiming equivalence. See the [Colab FAQ](https://research.google.com/colaboratory/faq.html).
 

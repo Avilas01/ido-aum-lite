@@ -137,7 +137,7 @@ def test_every_code_block_is_numbered_and_actions_default_to_disabled():
             numbers.append(int(heading.source.split()[2]))
     assert numbers == list(range(1, 14))
     for flag in ["RUN_CACHE_DATA", "RUN_COLAB_TESTS", "RUN_DATA_CHECK", "RUN_SMOKE",
-                 "RUN_BENCHMARK", "FREEZE_APPROVED", "RUN_TRAINING", "RUN_EVALUATION"]:
+                 "RUN_BENCHMARK", "FREEZE_APPROVED", "RUN_TRAINING", "RUN_EVALUATION", "RUN_PLOTTING"]:
         source = next(s for s in code if flag + " = False" in s)
         if flag == "FREEZE_APPROVED":
             exec(source, {})  # Disabled freeze must not require configured paths.
@@ -180,3 +180,16 @@ def test_step4_commands_use_shared_archive_and_explicit_gpu_acknowledgement():
     assert "'--acknowledge-gpu-change'" in training
     assert 'ACKNOWLEDGE_GPU_CHANGE' in training
     assert "'--resume'" in training
+
+
+
+def test_step5_evaluation_is_independent_of_future_plotting():
+    source = next(s for s in sources()[1] if 'RUN_EVALUATION = False' in s)
+    tree = ast.parse(source)
+    evaluation = next(node for node in tree.body if isinstance(node, ast.If) and isinstance(node.test, ast.Name) and node.test.id == 'RUN_EVALUATION')
+    plotting = next(node for node in tree.body if isinstance(node, ast.If) and isinstance(node.test, ast.Name) and node.test.id == 'RUN_PLOTTING')
+    assert 'src.evaluate' in ast.unparse(evaluation)
+    assert 'src.plots' not in ast.unparse(evaluation)
+    assert 'src.plots' in ast.unparse(plotting)
+    assert "'--archive-root', ARCHIVE_ROOT" in source
+    assert "'--acknowledge-gpu-change'" in source
