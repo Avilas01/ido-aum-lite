@@ -168,3 +168,15 @@ def test_cpu_data_only_guard_rejects_gpu_actions_without_importing_torch():
     exec(helper, env)
     with pytest.raises(RuntimeError, match="Choose GPU runtime"):
         env["require_gpu_session"]()
+
+
+
+def test_step4_commands_use_shared_archive_and_explicit_gpu_acknowledgement():
+    code = sources()[1]
+    benchmark = next(s for s in code if 'RUN_BENCHMARK = False' in s)
+    training = next(s for s in code if 'RUN_TRAINING = False' in s)
+    assert "'--archive-root', ARCHIVE_ROOT" in benchmark
+    assert "'--archive-root', ARCHIVE_ROOT" in training
+    assert "'--acknowledge-gpu-change'" in training
+    assert 'ACKNOWLEDGE_GPU_CHANGE' in training
+    assert "'--resume'" in training
