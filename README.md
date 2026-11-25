@@ -2,7 +2,7 @@
 
 Develop with VS Code and Codex on Windows. Run all full training, benchmarking and final evaluation on a Google Colab Free GPU. A local GPU is not required.
 
-**Current stage: Step 5 evaluation/aggregation code implemented; real benchmark, full training and final evaluation pending in Colab.** At commit 9892aee, the user confirmed a successful hosted-test command, integrated Step 4 GPU smoke and completed-stage resume. Its pytest count/skip summary was not visible. Step 5 adds cached final test accuracy, historical warm-up detection ROC-AUC, saved detector arrays and one deduplicated results table. Step 5 hosted checks remain pending. No model training or data download has run locally. Plotting and the final report remain later stages.
+**Current stage: Step 6 figures/tables implemented and generated from completed real experiments.** Benchmarking, 48 training epochs across both noise conditions, and all six final evaluations completed in Colab at commit 695f50f. The exported default configuration uses 20,000 training images, the untouched 10,000-image test split, seed 42 and 6+6 epochs. Four PNG figures, compact CSV/Markdown tables, verified source exports and a plot provenance manifest are in `results/`. The final report remains Step 7. No PyTorch installation, model training or CIFAR download has run locally; only saved-result analysis and plotting run here.
 
 ## Repository responsibilities
 
@@ -21,7 +21,8 @@ Develop with VS Code and Codex on Windows. Run all full training, benchmarking a
 - `src/checkpoints.py`: verified checkpoint journal, full-state hashing, code/configuration/data identity, RNG capture/restore.
 - `src/train.py`: shared warm-up, three continuation branches, epoch-boundary resume, isolated smoke and representative-epoch benchmark.
 - `src/evaluate.py`: sole owner of cached final test accuracy, historical detector ROC-AUC, plot-input arrays and JSON/CSV aggregation.
-- Other research modules (planned): plotting and the final report.
+- `src/plots.py`: CPU-safe verified-export reader, four PNG figures, compact comparison tables and source/artifact provenance.
+- Remaining work: Step 7 final report and reproducibility polish.
 - `requirements.txt`: lightweight Windows dependencies, excluding torch/torchvision/CUDA.
 - `requirements-colab.txt`: explicit training/evaluation dependencies including torch and torchvision.
 - `src/colab_dependencies.py`: Colab-only GPU dependency inspection/repair, safe to import locally without torch.
@@ -254,7 +255,7 @@ Epoch payloads are retained, so budget Drive storage for model and optimizer sta
 
 ## Step 5: final evaluation and result aggregation
 
-Step 5 code is implemented; no full experiments or final measurements have been performed. Local tests use controlled synthetic fixtures, never experimental result claims. The evaluator imports torch only for checkpoint/model operations; pure detector, cache and aggregation tests remain lightweight.
+Step 5 full experiments and all six final measurements completed in Colab at 695f50f; the exported measurements are preserved in results/. Local tests use controlled synthetic fixtures, never experimental result claims. The evaluator imports torch only for checkpoint/model operations; pure detector, cache and aggregation tests remain lightweight.
 
 ```powershell
 ./.venv/Scripts/python.exe -m pytest tests/test_evaluate.py -q
@@ -264,7 +265,7 @@ Before real runs, commit/push the reviewed Step 5 code, refresh Colab source/set
 
 For the real experiment, use Block 10 to benchmark, review remaining time and any uniform Section I fallback, then Block 11 to freeze once. Block 12 executes/resumes both noise conditions. Do not change configuration, code or label metadata after freezing. Allow for evaluation and setup/Drive/debugging overhead in the 4.5-hour allocation; the 512-image smoke timing is not a runtime estimate for real training.
 
-Block 13 now has separate `RUN_EVALUATION=False` and `RUN_PLOTTING=False` controls. Once final checkpoints exist, enable evaluation only. Plotting stays False until Step 6 exists. The equivalent CLI from the frozen checkout is:
+Block 13 now has separate `RUN_EVALUATION=False` and `RUN_PLOTTING=False` controls. Once final checkpoints exist, enable evaluation only. Plotting is now implemented and CPU-safe; use a checkout containing src.plots without changing the frozen training/evaluation checkout. The equivalent CLI from the frozen checkout is:
 
 ```bash
 python -m src.evaluate --device cuda --data-root /content/data --archive-root /content/drive/MyDrive/ido-aum-lite/cache/cifar10 --runs "$EXPERIMENT_ROOT/runs" --output-root "$EXPERIMENT_ROOT/results"
@@ -287,7 +288,39 @@ Outputs under the persistent results root:
 
 CSV accuracy is a percentage; ROC-AUC values lie in [0,1]. Each method's reported training duration includes the shared warm-up, so summing rows would count shared work three times. Missing checkpoint-publication timing sidecars remain null/explicitly incomplete; no duration is invented. JSON retains sample-weighted adaptive component/confidence/zero/near-zero diagnostics and common deterministic CE separately from the weighted training objective. CSV/JSON are derived from immutable checkpoint/cache records and can be rebuilt after interrupted aggregation without repeating completed test measurements. Use one evaluator writer per results directory.
 
-After both conditions finish, confirm `metrics.json` says `complete: true`, `row_count: 6`, with two detector summaries and primary WE/-AUM AUC for both noise levels. These are exploratory single-seed results from an IDO-inspired simplification; negative outcomes are valid. Actual real-data numbers must come from those persisted outputs. Save source/frozen metadata and small reviewed results to GitHub later; keep datasets and model/optimizer checkpoints on Drive. Step 6 figures and Step 7 report remain unimplemented.
+After both conditions finish, confirm `metrics.json` says `complete: true`, `row_count: 6`, with two detector summaries and primary WE/-AUM AUC for both noise levels. These are exploratory single-seed results from an IDO-inspired simplification; negative outcomes are valid. Actual real-data numbers must come from those persisted outputs. Save source/frozen metadata and small reviewed results to GitHub later; keep datasets and model/optimizer checkpoints on Drive. Step 6 figures/tables are generated below; the Step 7 report remains unimplemented.
+
+## Step 6: figures, comparison tables and measured source exports
+
+All four required plots are generated from the supplied `run-001` evaluation export. No GPU, model checkpoint, CIFAR download or model inference is needed for plotting. The separate epoch files are redundant: `metrics.json` already embeds every common deterministic warm-up/continuation CE log. `--runs` remains an optional cross-check/fallback for external `epochs.json` files.
+
+Regenerate all figures/tables locally with the existing lightweight environment:
+
+```powershell
+./.venv/Scripts/python.exe -m src.plots --results results --config results/experiment_config.json
+./.venv/Scripts/python.exe -m pytest tests/test_plots.py -q
+```
+
+The same CLI works in a CPU Colab session using `python -m src.plots --results <exported-results> --runs <runs-root>`. `--config` can name an explicit frozen configuration; otherwise the reader checks `experiment_config.json` inside/beside results or uses its verified embedded configuration. `--output-root` writes derived files elsewhere while preserving source inputs.
+
+A frozen training checkout at 695f50f predates `src.plots`. Preserve its code/configuration identity for training/evaluation recovery; run the newer plotting code against exported results in the development checkout or a separate CPU checkout. There is no reason to retrain or unfreeze the experiment to generate figures. Block 13 keeps independent evaluation/plotting flags, both disabled by default; its plotting action requires a checkout containing the plotter.
+
+Generated artifacts:
+
+| File under `results/` | Content |
+| --- | --- |
+| `figures/accuracy_comparison.png` | Three measured final accuracies at each noise ratio; a zero-based 0-100% axis, individual value labels and no fabricated uncertainty bars. |
+| `figures/noise_detection_roc.png` | Raw WE versus negative-AUM ROC curves at the configured primary warm-up epoch, one panel per noise condition; plotted AUCs are recalculated from the saved arrays and checked against evaluation. |
+| `figures/score_distributions.png` | WE and raw AUM separated by actual clean/corrupted labels at the first configured noise level (20% here), selected independently of quality. Each group is normalized separately. |
+| `figures/common_ce_curves.png` | Shared warm-up followed by three continuations for each noise condition. Only common deterministic unweighted provided-label CE is used; the boundary is after configured epoch W (6 here), never hardcoded or inferred from curve shape. |
+| `comparison_table.csv` / `comparison_table.md` | Six measured accuracy rows and changes versus Standard in percentage points; Markdown also includes the two shared warm-up detector summaries. |
+| `plots_manifest.json` | Original experiment code identity, scientific configuration, input checksums, plotter-source checksum, configured boundary/representative noise and hashes of all six generated artifacts. |
+
+The supplied `experiment_config.json`, original evaluation CSV/JSON/publication manifests, six accuracy-cache records and detector summaries/NPZ arrays are preserved under `results/` for a portable offline reproduction. These small per-sample statistic arrays are not images or model checkpoints. The untouched import copy is also retained under ignored `runs/colab-export/run-001/`. All large checkpoints and CIFAR files remain on Drive.
+
+Before plotting, the reader verifies the evaluation publication marker and CSV/JSON agreement; requires all six completed rows; checks configuration, counts, stable IDs, corruption masks, historical WE/margin sums/counts/AUM and detector checksums; recalculates primary detector AUCs; and validates complete common-CE logs. Missing or inconsistent sources fail before creating figures. The original `metrics.csv` and evaluation caches are never rewritten by plotting. Every figure records actual subset/schedule/seed, source and single-seed scope. Non-default size/schedule is labelled when applicable.
+
+The measured table records IDO-lite/Hybrid accuracies of 75.26%/74.76% at 20% noise and 68.61%/68.48% at 40%, versus Standard 70.42%/63.80%. These are exploratory observations from one seed: AUM's stronger detection AUC does not establish that hybrid scoring improves test accuracy. Standard versus adaptive compares whole strategies; WE-only versus Hybrid holds the adaptive objective/views fixed. The final report must retain these qualifications.
 
 ## Restart and resume
 

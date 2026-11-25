@@ -1,0 +1,8 @@
+{
+  "complete": true,
+  "metrics_csv_sha256": "f7f882cdef1d569f6a91d43a9e10f88fdfd63d5f6f68aa970cb311061319614b",
+  "metrics_json_sha256": "d521b7d3f2f96530936ccb7ec23b130d756fd1a36cbeb3e69bccb50f80eb669c",
+  "row_count": 6,
+  "schema_version": 1,
+  "scope_sha256": "d16f23298ffae28541b1f2eedc99e471c62f75dcc5fb32d30a90caf703b25418"
+}

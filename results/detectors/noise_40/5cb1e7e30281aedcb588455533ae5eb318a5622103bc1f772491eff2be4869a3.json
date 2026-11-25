@@ -1,0 +1,57 @@
+{
+  "arrays": "detectors/noise_40/5cb1e7e30281aedcb588455533ae5eb318a5622103bc1f772491eff2be4869a3.npz",
+  "arrays_sha256": "09500232fa9816e46db400cba423fdb8eb4e8e9a2bda105cdf501f0dcd31db6d",
+  "history": [
+    {
+      "epoch": 1,
+      "hybrid_roc_auc": 0.8280000624999999,
+      "negative_aum_roc_auc": 0.8262262239583333,
+      "we_roc_auc": 0.6675
+    },
+    {
+      "epoch": 2,
+      "hybrid_roc_auc": 0.8715303802083334,
+      "negative_aum_roc_auc": 0.8703613958333333,
+      "we_roc_auc": 0.7502137395833333
+    },
+    {
+      "epoch": 3,
+      "hybrid_roc_auc": 0.8864405000000001,
+      "negative_aum_roc_auc": 0.8846806927083333,
+      "we_roc_auc": 0.7809917604166667
+    },
+    {
+      "epoch": 4,
+      "hybrid_roc_auc": 0.9017091718750001,
+      "negative_aum_roc_auc": 0.9022895625,
+      "we_roc_auc": 0.8225314531250001
+    },
+    {
+      "epoch": 5,
+      "hybrid_roc_auc": 0.9118693750000001,
+      "negative_aum_roc_auc": 0.9132984375,
+      "we_roc_auc": 0.84903621875
+    },
+    {
+      "epoch": 6,
+      "hybrid_roc_auc": 0.9195092395833333,
+      "negative_aum_roc_auc": 0.9218863645833333,
+      "we_roc_auc": 0.8674674166666666
+    }
+  ],
+  "interpretation": "Retrospective synthetic-noise detection; primary epoch fixed by configuration. No tuning or checkpoint selection.",
+  "primary": {
+    "epoch": 6,
+    "hybrid_roc_auc": 0.9195092395833333,
+    "negative_aum_roc_auc": 0.9218863645833333,
+    "we_roc_auc": 0.8674674166666666
+  },
+  "primary_epoch": 6,
+  "source": {
+    "clean_labels_sha256": "e1bd739bc535b08e270574c880101cd48b7a6a366adef74b4f6393b312721516",
+    "configuration_sha256": "a949134949d25219405ea573349acee3f46191429c5542b7b46a4a33d517acc0",
+    "corruption_mask_sha256": "d72ec7d2f4ab550ac2ae3e2cb1d2e29163a0830ef9888c86412ce66c0ee1497a",
+    "schema_version": 1,
+    "warmup_checkpoint_sha256": "89c78c575078b985e8ada977ea913300bfd98dd0ac57fdc196e6d3f011e438b9"
+  }
+}

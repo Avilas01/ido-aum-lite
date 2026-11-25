@@ -1,0 +1,105 @@
+{
+  "record_sha256": "71dbe2c54808eb5e121d61cb0837ec375683f766ddf6b0b6b56d5c4947e22bda",
+  "source": {
+    "checkpoint_sha256": "7d727d1f0e29e1334fe7f1c0ec6344100ad819cfc6c0ea2a2bdeca44c06d5c70",
+    "identity": {
+      "code": {
+        "git_sha": "695f50fef1915f0ab2d370ba6c8cda1282e9dae2",
+        "source_sha256": "d897c9d9cad77716eb4cddeba2496f15381c32f7deb49e84697e589149d0107c"
+      },
+      "configuration": {
+        "amp": true,
+        "batch_size": 128,
+        "cifar_stem": true,
+        "clean_weight_floor": 0.1,
+        "consistency_coefficient": 0.5,
+        "continuation_epochs": 6,
+        "dataset": "CIFAR10",
+        "learning_rate": 0.0003,
+        "model": "resnet18",
+        "near_zero_epsilon": 1e-08,
+        "noise_ratios": [
+          0.2,
+          0.4
+        ],
+        "num_workers": 2,
+        "optimizer": "AdamW",
+        "pretrained": false,
+        "pseudo_coefficient": 0.5,
+        "pseudo_threshold": 0.7,
+        "seed": 42,
+        "test_size": 10000,
+        "train_size": 20000,
+        "warmup_epochs": 6,
+        "weight_decay": 0.0001
+      },
+      "configuration_sha256": "a949134949d25219405ea573349acee3f46191429c5542b7b46a4a33d517acc0",
+      "dataset": {
+        "expected_corruptions": 4000,
+        "images_sha256": "43d4c52e7b0a927e6a83ed792dc7d8b75c7f2c39d39405e27dd4a63bd5d0527c",
+        "noise_ratio": 0.2,
+        "noise_seed": 3285061152,
+        "noisy_label_checksum": "c24980d3a4caa3e4143022faf271045c6aba9d459b721dd896f7c5de0e6c2341",
+        "seed": 42,
+        "source": "official CIFAR-10 training split",
+        "subset_checksum": "ea2824399d7387302081ecea7e22c377c2d945cfad940ec678651d9f21298ec8",
+        "train_size": 20000
+      },
+      "kind": "experiment",
+      "runtime": {
+        "cuda": "13.0",
+        "cudnn": 92800,
+        "device_type": "cuda",
+        "numpy": "2.4.6",
+        "python": "3.13.16",
+        "torch": "2.14.1+cu130",
+        "torchvision": "0.29.1+cu130"
+      },
+      "schedule": {
+        "continuation_epochs": 6,
+        "warmup_epochs": 6
+      },
+      "schema_version": 1,
+      "stage": "hybrid",
+      "target_epochs": 6
+    },
+    "model_sha256": "ccd3441862a362bc5e5625cccaebe0f9df762bb1ea8286f4ee5fe79118c5ef76",
+    "protocol": {
+      "amp": false,
+      "augmentation": false,
+      "classes": 10,
+      "dataset": "CIFAR10",
+      "normalization_mean": [
+        0.4914,
+        0.4822,
+        0.4465
+      ],
+      "normalization_std": [
+        0.247,
+        0.2435,
+        0.2616
+      ],
+      "sample_count": 10000,
+      "schema_version": 1,
+      "split": "untouched official test"
+    },
+    "schema_version": 1
+  },
+  "value": {
+    "accuracy_pct": 74.76,
+    "correct": 7476,
+    "environment": {
+      "cuda": "13.0",
+      "cudnn": 92800,
+      "device_type": "cuda",
+      "gpu": "Tesla T4",
+      "numpy": "2.4.6",
+      "python": "3.13.16",
+      "torch": "2.14.1+cu130",
+      "torchvision": "0.29.1+cu130"
+    },
+    "evaluation_seconds": 3.1703955029997815,
+    "test_data_sha256": "746260e0c819c2cf4027cfcd58a2a5af68dca21a26043cf6b7061a197cc56819",
+    "total": 10000
+  }
+}

@@ -1,0 +1,7 @@
+noise_ratio,method,test_accuracy_pct,delta_vs_standard_pp
+0.2,standard,70.42,0.00
+0.2,ido_lite,75.26,4.84
+0.2,hybrid,74.76,4.34
+0.4,standard,63.80,0.00
+0.4,ido_lite,68.61,4.81
+0.4,hybrid,68.48,4.68

@@ -1,0 +1,56 @@
+{
+  "artifacts": {
+    "comparison_table.csv": "28a7937a742902bb6851523e18548aea3ca7d5c190acbb9d56be53fda85b627c",
+    "comparison_table.md": "4ba4119162dde1e21b19bda9d1803bb746974bfdbc3977d705979e039e064262",
+    "figures/accuracy_comparison.png": "3602e7aada41c0130397d4b972e3706d468508803e04e1340c9d28cb6ca822c5",
+    "figures/common_ce_curves.png": "ef7192bd1be60ed4e3db62bbd43f762209c8a7e8fd9b7f0cf434b952cdb2559d",
+    "figures/noise_detection_roc.png": "f0d8557e6d1949f36b2d1bd84da9ff74bc67c4ebf24a4fdd32a5d678e1eb46fd",
+    "figures/score_distributions.png": "2a3b761a3ff67fbab3b14f8f4ce3e70ab7bdf4c0085b5aa979e664a38395d075"
+  },
+  "configuration": {
+    "amp": true,
+    "batch_size": 128,
+    "cifar_stem": true,
+    "clean_weight_floor": 0.1,
+    "consistency_coefficient": 0.5,
+    "continuation_epochs": 6,
+    "dataset": "CIFAR10",
+    "learning_rate": 0.0003,
+    "model": "resnet18",
+    "near_zero_epsilon": 1e-08,
+    "noise_ratios": [
+      0.2,
+      0.4
+    ],
+    "num_workers": 2,
+    "optimizer": "AdamW",
+    "pretrained": false,
+    "pseudo_coefficient": 0.5,
+    "pseudo_threshold": 0.7,
+    "seed": 42,
+    "test_size": 10000,
+    "train_size": 20000,
+    "warmup_epochs": 6,
+    "weight_decay": 0.0001
+  },
+  "learning_curve_metric": "common_noisy_ce: deterministic unweighted provided-label CE",
+  "plotter_sha256": "4a3a3d9a6f17cf1907d0de0c083d12379be75354d29fc72a67b5bc552dd1d012",
+  "primary_detector_epoch": 6,
+  "representative_noise_ratio": 0.2,
+  "schema_version": 1,
+  "sources": {
+    "configuration_sha256": "a949134949d25219405ea573349acee3f46191429c5542b7b46a4a33d517acc0",
+    "detector_arrays_sha256": {
+      "0.2": "1ad55e0745f0c140a22fc433169abb0cdd6435e77f928b56e78e84b5adc8c68a",
+      "0.4": "09500232fa9816e46db400cba423fdb8eb4e8e9a2bda105cdf501f0dcd31db6d"
+    },
+    "evaluation_code": {
+      "git_sha": "695f50fef1915f0ab2d370ba6c8cda1282e9dae2",
+      "source_sha256": "d897c9d9cad77716eb4cddeba2496f15381c32f7deb49e84697e589149d0107c"
+    },
+    "metrics_csv_sha256": "f7f882cdef1d569f6a91d43a9e10f88fdfd63d5f6f68aa970cb311061319614b",
+    "metrics_json_sha256": "d521b7d3f2f96530936ccb7ec23b130d756fd1a36cbeb3e69bccb50f80eb669c",
+    "metrics_manifest_sha256": "b26819290c9221dd365709add805d10f3fe90781508780ebcbd4fea1c39391f4"
+  },
+  "warmup_boundary": 6.5
+}

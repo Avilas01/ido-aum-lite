@@ -3,3 +3,6 @@
 *.json text eol=lf
 *.ipynb text eol=lf
 *.md text eol=lf whitespace=-blank-at-eol
+
+# Preserve measured/exported artifacts exactly: publication manifests hash their bytes.
+results/** -text whitespace=cr-at-eol

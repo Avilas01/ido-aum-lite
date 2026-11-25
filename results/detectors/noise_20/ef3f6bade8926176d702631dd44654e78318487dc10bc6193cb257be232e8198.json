@@ -1,0 +1,57 @@
+{
+  "arrays": "detectors/noise_20/ef3f6bade8926176d702631dd44654e78318487dc10bc6193cb257be232e8198.npz",
+  "arrays_sha256": "1ad55e0745f0c140a22fc433169abb0cdd6435e77f928b56e78e84b5adc8c68a",
+  "history": [
+    {
+      "epoch": 1,
+      "hybrid_roc_auc": 0.857505140625,
+      "negative_aum_roc_auc": 0.856760921875,
+      "we_roc_auc": 0.70196875
+    },
+    {
+      "epoch": 2,
+      "hybrid_roc_auc": 0.8906616953125002,
+      "negative_aum_roc_auc": 0.8936977109375001,
+      "we_roc_auc": 0.7775482578124999
+    },
+    {
+      "epoch": 3,
+      "hybrid_roc_auc": 0.9157489609375,
+      "negative_aum_roc_auc": 0.91694715625,
+      "we_roc_auc": 0.8316813671875
+    },
+    {
+      "epoch": 4,
+      "hybrid_roc_auc": 0.9311932656249999,
+      "negative_aum_roc_auc": 0.9324325390625,
+      "we_roc_auc": 0.86841196875
+    },
+    {
+      "epoch": 5,
+      "hybrid_roc_auc": 0.9386082109374999,
+      "negative_aum_roc_auc": 0.9391435859374999,
+      "we_roc_auc": 0.8864876484374999
+    },
+    {
+      "epoch": 6,
+      "hybrid_roc_auc": 0.9437673359375001,
+      "negative_aum_roc_auc": 0.943641671875,
+      "we_roc_auc": 0.8992014140625
+    }
+  ],
+  "interpretation": "Retrospective synthetic-noise detection; primary epoch fixed by configuration. No tuning or checkpoint selection.",
+  "primary": {
+    "epoch": 6,
+    "hybrid_roc_auc": 0.9437673359375001,
+    "negative_aum_roc_auc": 0.943641671875,
+    "we_roc_auc": 0.8992014140625
+  },
+  "primary_epoch": 6,
+  "source": {
+    "clean_labels_sha256": "e1bd739bc535b08e270574c880101cd48b7a6a366adef74b4f6393b312721516",
+    "configuration_sha256": "a949134949d25219405ea573349acee3f46191429c5542b7b46a4a33d517acc0",
+    "corruption_mask_sha256": "7666e2751f565e9cfb4e468c9a67c0355583225c8de85105de56d7d7b73a7889",
+    "schema_version": 1,
+    "warmup_checkpoint_sha256": "6cb42633eac3a7922e34a3ce37c69035e71e1f9d28f4b15cb7573ef68325ee4a"
+  }
+}
