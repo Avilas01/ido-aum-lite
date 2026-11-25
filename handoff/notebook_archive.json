@@ -1,0 +1,17 @@
+{
+  "archive": "notebooks/colab_runner_completed.ipynb",
+  "archive_sha256": "a6b3e2886e2b5aac8f9b4150c3722a9db3737d81a9dc44fd4efab9f75f0ca124",
+  "cells_with_outputs": 9,
+  "changes": [
+    "Added one Markdown archive notice; original cells, sources, outputs and execution counts unchanged."
+  ],
+  "credential_review": "No embedded token/private-key patterns or account identifiers found; no output redaction required.",
+  "executed_cells": 11,
+  "experiment_git_sha": "695f50fef1915f0ab2d370ba6c8cda1282e9dae2",
+  "hosted_test_summary": "Not captured in the original saved cell; no count inferred.",
+  "original_cells_preserved": 39,
+  "run_id": "run-001",
+  "schema_version": 1,
+  "source_filename": "colab_runner.ipynb",
+  "source_sha256": "1016771bc76b736305c5577918803533a64f6b624ba6632e4303b413b2de15f4"
+}

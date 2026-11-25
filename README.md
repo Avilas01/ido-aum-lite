@@ -49,6 +49,19 @@ survives a fresh checkout. Report tables are generated from those same metrics;
 Word text, tables and OMML equations are editable. Rebuilding the report replaces
 manual Word/Markdown edits, so preserve the edited copy first.
 
+## Completed run archive and teammate handoff
+
+The [completed Colab notebook](notebooks/colab_runner_completed.ipynb) preserves
+saved benchmark, freeze, training, evaluation and accuracy-table outputs at
+695f50f. It is an execution archive; use the separate clean runner for new work.
+Its original cells and outputs are unchanged, with an added archive notice.
+No hosted pytest count is inferred from the saved cell's absent summary.
+
+See [the teammate handoff](handoff/README.md) for the completed warm-up folders,
+frozen configuration, required original Drive manifests and a checksum/inventory
+of the downloaded archive members. Large checkpoints stay on Drive, not in Git.
+A shared Drive URL has not been supplied; folder access must be shared separately.
+
 ## Method and executed configuration
 
 The same deterministic stratified 20,000-image training subset (2,000 per original

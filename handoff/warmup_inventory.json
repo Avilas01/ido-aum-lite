@@ -1,0 +1,363 @@
+{
+  "additional_original_drive_files_for_runner_recovery": [
+    "manifest.json",
+    "benchmark/benchmark_report.json"
+  ],
+  "archive_parts": [
+    {
+      "filename": "runs-20261125T181843Z-1-001.zip",
+      "size_bytes": 1853926296
+    },
+    {
+      "filename": "runs-20261125T181843Z-1-002.zip",
+      "size_bytes": 1854275005
+    },
+    {
+      "filename": "runs-20261125T181843Z-1-003.zip",
+      "size_bytes": 1851553204
+    },
+    {
+      "filename": "runs-20261125T181843Z-1-004.zip",
+      "size_bytes": 370288799
+    }
+  ],
+  "completed_warmups": {
+    "noise_20": {
+      "epoch": 6,
+      "latest_checkpoint": {
+        "epoch": 6,
+        "file": "epoch_006_ac22984693044992afb1a60fab41a025.pt",
+        "sha256": "6cb42633eac3a7922e34a3ce37c69035e71e1f9d28f4b15cb7573ef68325ee4a",
+        "size_bytes": 136212943
+      }
+    },
+    "noise_40": {
+      "epoch": 6,
+      "latest_checkpoint": {
+        "epoch": 6,
+        "file": "epoch_006_f011c352474e406d86cdef11942d4c0b.pt",
+        "sha256": "89c78c575078b985e8ada977ea913300bfd98dd0ac57fdc196e6d3f011e438b9",
+        "size_bytes": 136232783
+      }
+    }
+  },
+  "configuration_sha256": "a949134949d25219405ea573349acee3f46191429c5542b7b46a4a33d517acc0",
+  "experiment_git_sha": "695f50fef1915f0ab2d370ba6c8cda1282e9dae2",
+  "files": [
+    {
+      "path": "runs/noise_20/data/analysis.npz",
+      "size_bytes": 18029,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "75e29a28"
+    },
+    {
+      "path": "runs/noise_20/data/metadata.json",
+      "size_bytes": 567,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "5d4ee256"
+    },
+    {
+      "path": "runs/noise_20/data/training.npz",
+      "size_bytes": 71882,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "5ed75c89"
+    },
+    {
+      "path": "runs/noise_20/run.json",
+      "size_bytes": 2454,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "66d14a6d"
+    },
+    {
+      "path": "runs/noise_20/warmup/epoch_001_c8c205bf1a884c1883e6052a08c510f3.pt",
+      "size_bytes": 134811471,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "a550d7d3"
+    },
+    {
+      "path": "runs/noise_20/warmup/epoch_002_9054810df291425cbefe6bf973fb70fb.pt",
+      "size_bytes": 135092879,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "7ff20dd7"
+    },
+    {
+      "path": "runs/noise_20/warmup/epoch_003_2fc05198d20d4c6f9c5268d7c122ceb7.pt",
+      "size_bytes": 135373647,
+      "source_archive": "runs-20261125T181843Z-1-004.zip",
+      "zip_crc32": "508a08b7"
+    },
+    {
+      "path": "runs/noise_20/warmup/epoch_004_bd58285a8b3044789677b711fd54754d.pt",
+      "size_bytes": 135653263,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "a451b5c9"
+    },
+    {
+      "expected_sha256": "cfa83e3aeef6e7b1862364fbb88a2010a4bf245d92e2f57bc09a2c3dcfc0fc29",
+      "path": "runs/noise_20/warmup/epoch_005_decf433af49040a6904d7dc80c662520.pt",
+      "payload_sha256_verified": true,
+      "size_bytes": 135932879,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "7ff54e29"
+    },
+    {
+      "expected_sha256": "6cb42633eac3a7922e34a3ce37c69035e71e1f9d28f4b15cb7573ef68325ee4a",
+      "path": "runs/noise_20/warmup/epoch_006_ac22984693044992afb1a60fab41a025.pt",
+      "payload_sha256_verified": true,
+      "size_bytes": 136212943,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "c725e92e"
+    },
+    {
+      "path": "runs/noise_20/warmup/epochs.json",
+      "size_bytes": 1332,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "05a13daa"
+    },
+    {
+      "path": "runs/noise_20/warmup/history/epoch_001.npz",
+      "size_bytes": 154001,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "fbc6625b"
+    },
+    {
+      "path": "runs/noise_20/warmup/history/epoch_002.npz",
+      "size_bytes": 156682,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "abc1eb08"
+    },
+    {
+      "path": "runs/noise_20/warmup/history/epoch_003.npz",
+      "size_bytes": 158311,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "821812a4"
+    },
+    {
+      "path": "runs/noise_20/warmup/history/epoch_004.npz",
+      "size_bytes": 159877,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "fbc56de0"
+    },
+    {
+      "path": "runs/noise_20/warmup/history/epoch_005.npz",
+      "size_bytes": 160503,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "5365a69c"
+    },
+    {
+      "path": "runs/noise_20/warmup/history/epoch_006.npz",
+      "size_bytes": 161181,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "7ec607e0"
+    },
+    {
+      "path": "runs/noise_20/warmup/latest.json",
+      "size_bytes": 2267,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "da02d6d8"
+    },
+    {
+      "path": "runs/noise_20/warmup/latest.previous.json",
+      "size_bytes": 2059,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "65486916"
+    },
+    {
+      "path": "runs/noise_20/warmup/timing_001.json",
+      "size_bytes": 213,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "f317e3ad"
+    },
+    {
+      "path": "runs/noise_20/warmup/timing_002.json",
+      "size_bytes": 213,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "f021da4f"
+    },
+    {
+      "path": "runs/noise_20/warmup/timing_003.json",
+      "size_bytes": 213,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "c1ef4cfa"
+    },
+    {
+      "path": "runs/noise_20/warmup/timing_004.json",
+      "size_bytes": 212,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "8d84fe8d"
+    },
+    {
+      "path": "runs/noise_20/warmup/timing_005.json",
+      "size_bytes": 211,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "f1dd118d"
+    },
+    {
+      "path": "runs/noise_20/warmup/timing_006.json",
+      "size_bytes": 207,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "f0fa723f"
+    },
+    {
+      "path": "runs/noise_40/data/analysis.npz",
+      "size_bytes": 18546,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "83ac80d5"
+    },
+    {
+      "path": "runs/noise_40/data/metadata.json",
+      "size_bytes": 567,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "24a5ed72"
+    },
+    {
+      "path": "runs/noise_40/data/training.npz",
+      "size_bytes": 71918,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "43a6e107"
+    },
+    {
+      "path": "runs/noise_40/run.json",
+      "size_bytes": 2454,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "64a6b96f"
+    },
+    {
+      "path": "runs/noise_40/warmup/epoch_001_96a338f5d80d4a7786f3424a3d5742fa.pt",
+      "size_bytes": 134814991,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "53897587"
+    },
+    {
+      "path": "runs/noise_40/warmup/epoch_002_3278eb3ebf584a7ea1be51727cc7c61c.pt",
+      "size_bytes": 135099343,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "c3fd94dc"
+    },
+    {
+      "path": "runs/noise_40/warmup/epoch_003_830530a2ff514274a677e77260b37abe.pt",
+      "size_bytes": 135384911,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "c61df231"
+    },
+    {
+      "path": "runs/noise_40/warmup/epoch_004_4e2c44aa77be4bea94ad1479a99cd5da.pt",
+      "size_bytes": 135669199,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "09134e16"
+    },
+    {
+      "expected_sha256": "397e99842f28ea396e552231936097e3070d39a4c79f951fe427ba409c6daa4e",
+      "path": "runs/noise_40/warmup/epoch_005_b2b3a2ba96fe452790e746b014d564d6.pt",
+      "payload_sha256_verified": true,
+      "size_bytes": 135950735,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "2ee95501"
+    },
+    {
+      "expected_sha256": "89c78c575078b985e8ada977ea913300bfd98dd0ac57fdc196e6d3f011e438b9",
+      "path": "runs/noise_40/warmup/epoch_006_f011c352474e406d86cdef11942d4c0b.pt",
+      "payload_sha256_verified": true,
+      "size_bytes": 136232783,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "12a7c3b4"
+    },
+    {
+      "path": "runs/noise_40/warmup/epochs.json",
+      "size_bytes": 1334,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "2c513193"
+    },
+    {
+      "path": "runs/noise_40/warmup/history/epoch_001.npz",
+      "size_bytes": 153305,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "ffa29a68"
+    },
+    {
+      "path": "runs/noise_40/warmup/history/epoch_002.npz",
+      "size_bytes": 155687,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "9f96893d"
+    },
+    {
+      "path": "runs/noise_40/warmup/history/epoch_003.npz",
+      "size_bytes": 156603,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "f7b9af6f"
+    },
+    {
+      "path": "runs/noise_40/warmup/history/epoch_004.npz",
+      "size_bytes": 158473,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "38cf05a5"
+    },
+    {
+      "path": "runs/noise_40/warmup/history/epoch_005.npz",
+      "size_bytes": 159459,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "515a9266"
+    },
+    {
+      "path": "runs/noise_40/warmup/history/epoch_006.npz",
+      "size_bytes": 160068,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "109d24dc"
+    },
+    {
+      "path": "runs/noise_40/warmup/latest.json",
+      "size_bytes": 2267,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "2aeb6e43"
+    },
+    {
+      "path": "runs/noise_40/warmup/latest.previous.json",
+      "size_bytes": 2059,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "db86d4a1"
+    },
+    {
+      "path": "runs/noise_40/warmup/timing_001.json",
+      "size_bytes": 213,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "c68fd782"
+    },
+    {
+      "path": "runs/noise_40/warmup/timing_002.json",
+      "size_bytes": 212,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "60f0bc23"
+    },
+    {
+      "path": "runs/noise_40/warmup/timing_003.json",
+      "size_bytes": 211,
+      "source_archive": "runs-20261125T181843Z-1-003.zip",
+      "zip_crc32": "2f71b4cd"
+    },
+    {
+      "path": "runs/noise_40/warmup/timing_004.json",
+      "size_bytes": 211,
+      "source_archive": "runs-20261125T181843Z-1-001.zip",
+      "zip_crc32": "a5a066fa"
+    },
+    {
+      "path": "runs/noise_40/warmup/timing_005.json",
+      "size_bytes": 212,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "ff8fdf53"
+    },
+    {
+      "path": "runs/noise_40/warmup/timing_006.json",
+      "size_bytes": 212,
+      "source_archive": "runs-20261125T181843Z-1-002.zip",
+      "zip_crc32": "e93bf586"
+    }
+  ],
+  "frozen_config_file_sha256": "0bb61e53ca9fafb05067df1c5ff1c25cf6a45d6801b2e86eeb07ae382be5f9b7",
+  "frozen_config_repository_path": "results/experiment_config.json",
+  "large_files_published": false,
+  "run_id": "run-001",
+  "schema_version": 1,
+  "shared_drive_url": null,
+  "verification": "Final epoch-6 and previous epoch-5 payloads for both conditions were streamed from the ZIP files and SHA256-verified without importing torch. Earlier epoch payloads are inventoried by ZIP size/CRC only."
+}
